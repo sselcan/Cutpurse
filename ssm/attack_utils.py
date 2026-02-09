@@ -642,72 +642,91 @@ def traverse_explanations_SHAP2(sample_set, explainer, model, n_visits_lb, n_vis
 
 import numpy as np
 
-def create_diverse_samples_hybrid(samples, classPossibilities, isCat, num_desired_samples=10, pool_size=1000, refinement_steps=2):
-    """
-    Generates diverse samples using a large initial random search followed 
-    by local 'Hill Climbing' to maximize Hamming/Euclidean distance.
-    """
-    current_pool = np.array(samples)
+def create_diverse_samples_hybrid(samples, classPossibilities, isCat, feature_ranges, num_desired_samples=10, pool_size=1000, refinement_steps=2):
+    current_pool = np.array(samples, dtype=float)
     n_features = len(classPossibilities)
     new_diverse_samples = []
 
     for _ in range(num_desired_samples):
-        # Generate a random pool to find a good 'starting hill'
-        candidates = np.zeros((pool_size, n_features), dtype=int)
+        # PHASE 1: RANDOM SEARCH
+        # Initialize as float to support continuous values
+        candidates = np.zeros((pool_size, n_features), dtype=float)
+        
         for i in range(n_features):
-            candidates[:, i] = np.random.randint(0, classPossibilities[i], size=pool_size)
+            if isCat[i]:
+                candidates[:, i] = np.random.randint(0, classPossibilities[i], size=pool_size)
+            else:
+                low, high = feature_ranges[i]
+                candidates[:, i] = np.random.uniform(low, high, size=pool_size)
 
-        # Calculate initial distance matrix
-        if isCat:
-            # Hamming: (Pool x Data x Features) -> sum over Features
-            diff = candidates[:, np.newaxis, :] != current_pool[np.newaxis, :, :]
-            dist_matrix = diff.sum(axis=2)
-        else:
-            diff = candidates[:, np.newaxis, :] - current_pool[np.newaxis, :, :]
-            dist_matrix = np.linalg.norm(diff, axis=2)
+        # Calculate Distance Matrix for Mixed Data
+        # We calculate distances for all candidates against the current_pool
+        # (Pool_Size, Current_Pool_Size)
+        dist_matrix = np.zeros((pool_size, len(current_pool)))
+        
+        for i in range(n_features):
+            col_candidates = candidates[:, i][:, np.newaxis]
+            col_pool = current_pool[:, i][np.newaxis, :]
+            
+            if isCat[i]:
+                # Hamming component for this feature
+                dist_matrix += (col_candidates != col_pool).astype(float)
+            else:
+                # Squared Euclidean component for this feature
+                dist_matrix += (col_candidates - col_pool)**2
 
-        # Pick the best starting candidate from the random pool
+        # Pick the candidate whose MINIMUM distance to any point in the pool is LARGEST
         min_dists = dist_matrix.min(axis=1)
         best_idx = np.argmax(min_dists)
         best_candidate = candidates[best_idx].copy()
         current_max_min_dist = min_dists[best_idx]
 
-        # --- PHASE 2: LOCAL REFINEMENT (HILL CLIMBING) ---
-        # Tweak features one-by-one to 'climb' to the furthest possible point
+        # PHASE 2: LOCAL REFINEMENT (HILL CLIMBING)
         for _ in range(refinement_steps):
             improved = False
-            # Iterate through every feature to see if changing it improves diversity
             for f_idx in range(n_features):
                 original_val = best_candidate[f_idx]
                 
-                # Try all possible categories for this feature (or a subset for large cats)
-                for val in range(classPossibilities[f_idx]):
-                    if val == original_val:
-                        continue
-                        
+                # Define values to test for this specific feature
+                if isCat[f_idx]:
+                    test_values = range(int(classPossibilities[f_idx]))
+                else:
+                    # For continuous, try 10 random values within its range
+                    low, high = feature_ranges[f_idx]
+                    test_values = np.random.uniform(low, high, size=10)
+
+                for val in test_values:
+                    if val == original_val: continue
+                    
                     best_candidate[f_idx] = val
                     
-                    # Calculate distance of this NEW version to the entire current_pool
-                    if isCat:
-                        new_dist = (best_candidate != current_pool).sum(axis=1).min()
-                    else:
-                        new_dist = np.linalg.norm(best_candidate - current_pool, axis=1).min()
+                    # Calculate new distance to pool
+                    if isCat[f_idx]:
+                        # Quick update logic: calculate just this feature's contribution change
+                        # But for simplicity, we recalculate full distance:
+                        dists = np.zeros(len(current_pool))
+                        for j in range(n_features):
+                            if isCat[j]:
+                                dists += (best_candidate[j] != current_pool[:, j])
+                            else:
+                                dists += (best_candidate[j] - current_pool[:, j])**2
+                        new_dist = dists.min()
 
                     if new_dist > current_max_min_dist:
                         current_max_min_dist = new_dist
                         improved = True
-                        break # Found an improvement for this feature, move to next feature
+                        break 
                     else:
-                        best_candidate[f_idx] = original_val # Revert
+                        best_candidate[f_idx] = original_val
             
-            if not improved: # If no feature changes helped, we've hit a local peak
+            if not improved:
                 break
 
-        # Finalize the best candidate found
         new_diverse_samples.append(best_candidate)
         current_pool = np.vstack([current_pool, best_candidate])
 
     return new_diverse_samples
+
 # optimized version of create_diverse_samples using random sampling of candidates
 def create_diverse_samples_optimized(samples, classPossibilities, isCat, num_desired_samples=10, candidate_pool_size=5000):
     current_pool = np.array(samples)
@@ -778,19 +797,102 @@ def create_diverse_samples(samples, classPossibilities, isCat):
 
     return new_diverse_samples
 
+def find_boundary_point(target_model, x_a, x_b, iterations=10):
+    """
+    Finds a point close to the decision boundary between x_a and x_b.
+    """
+    # Get initial predictions
+    label_a = np.argmax(target_model.predict(x_a.reshape(1, -1)))
+    label_b = np.argmax(target_model.predict(x_b.reshape(1, -1)))
+    
+    if label_a == label_b:
+        raise ValueError("Points x_a and x_b must have different predicted classes.")
+
+    low = 0.0
+    high = 1.0
+    boundary_sample = x_a
+    query_count = 0
+
+    for _ in range(iterations):
+        mid = (low + high) / 2
+        # Interpolate between A and B
+        x_mid = x_a + mid * (x_b - x_a)
+        
+        # Query the target model
+        current_label = np.argmax(target_model.predict(x_mid.reshape(1, -1)))
+        query_count += 1
+        
+        if current_label == label_a:
+            # We are still on the "A" side, move closer to B
+            low = mid
+            boundary_sample = x_mid
+        else:
+            # We crossed the boundary, move back toward A to refine
+            high = mid
+            
+    return boundary_sample, query_count
+
+def generate_shap_informed_samples(model, samples, explainer, isCat, feature_ranges, num_new_samples=10, top_k=5):
+    samples_array = np.array(samples, dtype=float)
+    preds = model.predict(samples_array)
+    
+    shap_results = explainer.shap_values(samples_array)
+    
+    # Standardize to a list of arrays
+    if not isinstance(shap_results, list):
+        shap_results = [shap_results]
+
+    new_samples = []
+    for _ in range(num_new_samples):
+        # 2. Pick two samples from different classes
+        idx_a = random.choice(range(len(samples_array)))
+        class_a = int(preds[idx_a])
+        
+        diff_indices = [i for i, p in enumerate(preds) if p != class_a]
+        if not diff_indices: continue
+        idx_b = random.choice(diff_indices)
+        class_b = int(preds[idx_b])
+
+        s_a, s_b = samples_array[idx_a], samples_array[idx_b]
+        
+        # FIX: Check if we have one array or one per class
+        if len(shap_results) == 1:
+            # For binary models with 1 output, class index doesn't exist in shap_results
+            importance_a = np.abs(shap_results[0][idx_a])
+            importance_b = np.abs(shap_results[0][idx_b])
+        else:
+            # For multi-output models (or predict_proba)
+            importance_a = np.abs(shap_results[class_a][idx_a])
+            importance_b = np.abs(shap_results[class_b][idx_b])
+            
+        combined_importance = importance_a + importance_b
+        top_features = np.argsort(combined_importance)[-top_k:]
+        
+        child = s_a.copy()
+        for i in range(len(s_a)):
+            if i in top_features:
+                if isCat[i]:
+                    child[i] = random.choice([s_a[i], s_b[i]]) # Pick one of the two categories
+                else:
+                    child[i] = np.random.uniform(min(s_a[i], s_b[i]), max(s_a[i], s_b[i])) # Pick a random float in between
+            else:
+                child[i] = s_a[i] if random.random() > 0.5 else s_b[i]
+        
+        new_samples.append(child)
+        
+    return new_samples
+
 #   version 3: adding diverse and target-model-confident samples for categorical datasets (nursey and mushroom) in the beginning
 def traverse_explanations_SHAP3(sample_set, explainer, model, n_visits_lb, n_visits_ub, upper_limit, n_f_e, args2,
                                model_name, X_train=None, y_train=None, explanation_type='vanilla', num_exp = 5):
-    classes, features, n_classes, n_features, isCat, epsilon_set, canNegative, classPossibilities, dataset_name = args2
+    classes, features, n_classes, n_features, isCat, epsilon_set, canNegative, classPossibilities, dataset_name, feature_ranges = args2
     print("Dataset name in traverse_explanations_SHAP3:", dataset_name)
     if isinstance(n_visits_lb, int):
         n_v_lb = np.ones(len(classes)) * n_visits_lb
         n_v_ub = np.ones(len(classes)) * n_visits_ub
     n_visits = np.zeros(len(classes))
     samples = sample_set.copy()
-    print("Initial samples:", samples)
     init_preds = model.predict_proba(samples)
-    # print("Local model created. predictions are as follows:", init_preds)
     preds = []
     visited_samples = []
     for i in init_preds:
@@ -799,16 +901,36 @@ def traverse_explanations_SHAP3(sample_set, explainer, model, n_visits_lb, n_vis
         visited_samples += [i]
     query = 1
     isPassed = [n_visits[i] >= n_v_lb[i] for i in range(len(n_v_lb))]
-    if dataset_name in ['nursery', 'mushroom']:
-        print("Generating diverse samples for categorical dataset:", dataset_name)
-        # for categorical datasets, create more diverse initial samples
-        diverse_samples = create_diverse_samples_hybrid(samples, classPossibilities, isCat)
-        while len(diverse_samples) > 0:
-            current_diverse  = diverse_samples.pop(0)
-            query += 1
-            if(model.predict_proba([current_diverse]).max() < 0.65): # only add samples that are confidently classified
-                print("Diverse samples left to process:", len(diverse_samples))
-                samples += [current_diverse]
+    middle_samples = generate_shap_informed_samples(model, samples, explainer, isCat, feature_ranges, num_new_samples=10, top_k=5)
+
+    print("Generating diverse samples for categorical dataset:", dataset_name)
+    # for categorical datasets, create more diverse initial samples
+    
+    diverse_samples = create_diverse_samples_hybrid(samples, classPossibilities, feature_ranges, isCat)
+    while len(diverse_samples) > 0:
+        current_diverse  = diverse_samples.pop(0)
+        query += 1
+        if(model.predict_proba([current_diverse]).max() > 0.8): # only add samples that are confidently classified
+            print("Diverse samples left to process:", len(diverse_samples))
+            samples += [current_diverse]
+    samples += middle_samples
+    # for i in range(len(classes)):
+    #     # generate target-model-confident samples near the decision boundary between class i and other classes
+    #     print("Generating boundary samples for class:", classes[i])
+    #     class_i_samples = [s for s, p in zip(samples, preds) if p == classes[i]]
+    #     other_class_samples = [s for s, p in zip(samples, preds) if p != classes[i]]
+    #     for s_a in class_i_samples:
+    #         for s_b in other_class_samples:
+    #             try:
+    #                 # todo: increase query also in find_boundary_point
+    #                 boundary_sample, query_count = find_boundary_point(model, s_a, s_b, iterations=3)
+    #                 query += query_count
+    #                 #if(model.predict_proba([boundary_sample]).max() > 0.8): # only add samples that are confidently classified
+    #                 samples += [boundary_sample]
+    #                 print("Added boundary sample between classes", classes[i], "and", "other class")
+    #             except ValueError:
+    #                 # Points have the same predicted class, skip
+    #                 continue
     while len(samples) != 0 and not all(isPassed) and not query > upper_limit:
         # 1. Print the information about the current sample
         query += 1
@@ -1034,7 +1156,7 @@ def argmaxing(accs, rss, args4):  # Select the most similar model up until given
                     argmax_sim[idx][k] = argmax_sim[idx - 1][k]
     return argmax_acc, argmax_sim
 
-
+#todo add feature ranges for continuous features in the datasets, and use them to ensure the generated diverse samples are within valid ranges
 def load_dataset(which_dataset):
     if which_dataset == 0:
         #iris = sklearn.datasets.load_iris()
@@ -1057,6 +1179,7 @@ def load_dataset(which_dataset):
         canNegative = [False] * n_features
         epsilon_set = [0.828, 0.436, 1.765, 0.762]
         epsilon_set = [x // 4 for x in epsilon_set]
+        feature_ranges = [(X[features[i]].min(), X[features[i]].max()) for i in range(n_features)]
         #epsilon_set = [1]*n_features   
     elif which_dataset == 1:
         n_crops = 17
@@ -1091,6 +1214,7 @@ def load_dataset(which_dataset):
         canNegative = [False] * n_features
         epsilon_set = [36.26, 34.17, 56.48, 5.34, 19.98, 0.79, 54.04]
         epsilon_set = [x // 4 for x in epsilon_set]
+        feature_ranges = [(X[features[i]].min(), X[features[i]].max()) for i in range(n_features)]
     elif which_dataset == 2:
         X, y = shap.datasets.adult()
         #Preprocessing
@@ -1113,6 +1237,7 @@ def load_dataset(which_dataset):
         isCategorical = [False, True, True, True, True, True, True, True, False, False, True]
         canNegative = [False, False, False, False, False, False, False, False, True, False, False]
         dataset_name = 'adult'
+        feature_ranges = [(X[features[i]].min(), X[features[i]].max()) for i in range(n_features)]
     elif which_dataset == 3:
         from sklearn.datasets import load_breast_cancer
         bc = load_breast_cancer()
@@ -1134,6 +1259,8 @@ def load_dataset(which_dataset):
         #epsilon_set = [x//4 for x in epsilon_set]
         #epsilon_set = [1]*n_features
         dataset_name = 'breast'
+        X = pd.DataFrame(X, columns=features)
+        feature_ranges = [(X[features[i]].min(), X[features[i]].max()) for i in range(n_features)]
     elif which_dataset == 4:
         nursery = pd.read_csv('/Users/sesame/AUTOLYCUS/data/nursery/nursery.csv')
         nursery[nursery == '?'] = np.nan
@@ -1164,6 +1291,7 @@ def load_dataset(which_dataset):
         epsilon_set = [1] * n_features
         canNegative = [False] * n_features
         dataset_name = 'nursery'
+        feature_ranges = [(X[features[i]].min(), X[features[i]].max()) for i in range(n_features)]
     elif which_dataset == 5:
         mushroom = pd.read_csv('/Users/sesame/AUTOLYCUS/data/mushroom/mushroom_data.csv')
         mushroom[mushroom == '?'] = np.nan
@@ -1192,6 +1320,7 @@ def load_dataset(which_dataset):
         epsilon_set = [1] * n_features
         canNegative = [False] * n_features
         dataset_name = 'mushroom'
+        feature_ranges = [(X[features[i]].min(), X[features[i]].max()) for i in range(n_features)]
     elif which_dataset == 6:
         normal = pd.read_csv("/Users/sesame/AUTOLYCUS/data/bctcga/BC-TCGA-Normal.txt", sep="\t")
         normal = normal.drop(columns=["Hybridization REF"], errors="ignore").T
@@ -1234,7 +1363,7 @@ def load_dataset(which_dataset):
         canNegative = [False] * n_features
         epsilon_set = list(X.std())
         dataset_name = 'bc_tcga'
-
+        feature_ranges = [(X[features[i]].min(), X[features[i]].max()) for i in range(n_features)]  
     elif which_dataset == 7:
         digits = sklearn.datasets.load_digits()
         #convert to dataframe
@@ -1257,6 +1386,7 @@ def load_dataset(which_dataset):
         canNegative = [False] * n_features
         epsilon_set = [16] * n_features  # assuming pixel values range from 0 to 16
         dataset_name = 'digits'
+        feature_ranges = [(X[features[i]].min(), X[features[i]].max()) for i in range(n_features)]
         
     else:
         print('there is no such dataset')
@@ -1268,7 +1398,7 @@ def load_dataset(which_dataset):
 
     args1 = [X_train, X_test, y_train, y_test, X_test_t, X_test_s, y_test_t, y_test_s]
     args2 = [classes, features, n_classes, n_features, isCategorical, epsilon_set, canNegative, classPossibilities,
-             dataset_name]
+             dataset_name, feature_ranges]
     return args1, args2
 
 
@@ -1712,9 +1842,9 @@ def run_attack_auto(wd, wm, et, hms, sss, nfe, ql, so):  # make sure the types a
     ## Unpack args
     args1, args2 = load_dataset(which_dataset)
     X_train, X_test, y_train, y_test, X_test_t, X_test_s, y_test_t, y_test_s = args1
-    classes, features, n_classes, n_features, isCategorical, epsilon_set, canNegative, classPossibilities, dataset_name = args2
+    classes, features, n_classes, n_features, isCategorical, epsilon_set, canNegative, classPossibilities, dataset_name, feature_ranges = args2
     t_model, model_name = load_model(which_model, X_train, y_train)
-    t_model = lr(random_state=101, max_iter=10000).fit(X_train, y_train)
+    # t_model = lr(random_state=101, max_iter=10000).fit(X_train, y_train)
     # model_name = 'lr'
 
     t_accuracy = getModelInfo(t_model, X_train, y_train, X_test_t, y_test_t)
@@ -1769,7 +1899,7 @@ def run_attack_auto(wd, wm, et, hms, sss, nfe, ql, so):  # make sure the types a
                                                                                            t_explainer, t_model, lb, ub,
                                                                                            query_limit[h], f, args2)
                         elif explanation_tool == 1:
-                            v_samples_np, v_pred_dec, n_query = traverse_explanations_SHAP(samples_mega[i][g],
+                            v_samples_np, v_pred_dec, n_query = traverse_explanations_SHAP3(samples_mega[i][g],
                                                                                            t_explainer, t_model, lb, ub,
                                                                                            query_limit[h], f, args2,
                                                                                            model_name, top_exp, X_train,
