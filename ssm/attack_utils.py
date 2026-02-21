@@ -796,6 +796,65 @@ def create_diverse_samples(samples, classPossibilities, isCat):
         current_pool = np.vstack([current_pool, best_candidate])
 
     return new_diverse_samples
+def create_manifold_aware_diverse_samples(samples, classPossibilities, feature_ranges, isCat, 
+                                         num_desired_samples=10, pool_size=1000, mutation_rate=0.7):
+    # 1. SANITIZE INPUTS: Ensure no NaNs exist in the input samples or ranges
+    current_pool = np.array(samples, dtype=float)
+    if np.any(np.isnan(current_pool)):
+        # Fill NaNs with 0 or mean as a fallback
+        current_pool = np.nan_to_num(current_pool)
+        
+    n_features = len(classPossibilities)
+    new_diverse_samples = []
+
+    for _ in range(num_desired_samples):
+        candidates = []
+        for _ in range(pool_size):
+            parent = current_pool[np.random.randint(len(current_pool))]
+            candidate = parent.copy()
+            
+            for i in range(n_features):
+                if np.random.random() < mutation_rate:
+                    if isCat[i]:
+                        candidate[i] = np.random.randint(0, classPossibilities[i])
+                    else:
+                        low, high = feature_ranges[i]
+                        # 2. GUARD: If range is 0 or NaN, use a small default epsilon or skip
+                        if np.isnan(low) or np.isnan(high) or low == high:
+                            # If feature is constant, don't mutate it
+                            continue 
+                            
+                        std_dev = (high - low) * 0.1
+                        noise = np.random.normal(0, std_dev)
+                        candidate[i] = np.clip(candidate[i] + noise, low, high)
+            
+            # Final safety check for the candidate
+            if not np.any(np.isnan(candidate)):
+                candidates.append(candidate)
+        
+        if not candidates: # If all candidates were invalid, skip this iteration
+            continue
+            
+        candidates = np.array(candidates)
+        # PHASE 2: MAX-MIN DISTANCE SELECTION (Diversity Check)
+        # We still want the most "diverse" of the realistic candidates
+        dist_matrix = np.zeros((pool_size, len(current_pool)))
+        for i in range(n_features):
+            col_candidates = candidates[:, i][:, np.newaxis]
+            col_pool = current_pool[:, i][np.newaxis, :]
+            if isCat[i]:
+                dist_matrix += (col_candidates != col_pool).astype(float)
+            else:
+                # Normalize continuous distance so one feature doesn't dominate
+                low, high = feature_ranges[i]
+                range_val = (high - low) if (high - low) > 0 else 1
+                dist_matrix += ((col_candidates - col_pool) / range_val)**2
+        min_dists = dist_matrix.min(axis=1)
+        best_idx = np.argmax(min_dists)
+        best_candidate = candidates[best_idx]
+        new_diverse_samples.append(best_candidate)
+        current_pool = np.vstack([current_pool, best_candidate])
+    return new_diverse_samples
 
 def find_boundary_point(target_model, x_a, x_b, iterations=10):
     """
@@ -901,19 +960,20 @@ def traverse_explanations_SHAP3(sample_set, explainer, model, n_visits_lb, n_vis
         visited_samples += [i]
     query = 1
     isPassed = [n_visits[i] >= n_v_lb[i] for i in range(len(n_v_lb))]
-    middle_samples = generate_shap_informed_samples(model, samples, explainer, isCat, feature_ranges, num_new_samples=10, top_k=5)
 
-    print("Generating diverse samples for categorical dataset:", dataset_name)
+    # print("Generating diverse samples for categorical dataset:", dataset_name)
     # for categorical datasets, create more diverse initial samples
     
-    diverse_samples = create_diverse_samples_hybrid(samples, classPossibilities, feature_ranges, isCat)
+    diverse_samples = create_manifold_aware_diverse_samples(samples, classPossibilities, feature_ranges, isCat)
     while len(diverse_samples) > 0:
         current_diverse  = diverse_samples.pop(0)
         query += 1
         if(model.predict_proba([current_diverse]).max() > 0.8): # only add samples that are confidently classified
             print("Diverse samples left to process:", len(diverse_samples))
             samples += [current_diverse]
-    samples += middle_samples
+
+    # middle_samples = generate_shap_informed_samples(model, samples, explainer, isCat, feature_ranges, num_new_samples=10, top_k=5)
+    # samples += middle_samples
     # for i in range(len(classes)):
     #     # generate target-model-confident samples near the decision boundary between class i and other classes
     #     print("Generating boundary samples for class:", classes[i])
