@@ -1,10 +1,11 @@
+from importlib import metadata
 import itertools
-import lime
-import lime.lime_tabular
+# import lime
+# import lime.lime_tabular
 import numpy as np
 import pandas as pd
 import random
-import seaborn as sns
+# import seaborn as sns
 import shap
 import sklearn
 import warnings
@@ -18,7 +19,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.tree import DecisionTreeClassifier as dt
 from sklearn.linear_model import LogisticRegression as lr
 from sklearn.naive_bayes import MultinomialNB as mnb
-from sklearn.neighbors import KNeighborsClassifier as knn
+from sklearn.neighbors import KNeighborsClassifier as knn, NearestNeighbors
 from sklearn.ensemble import RandomForestClassifier as rf
 from sklearn.neural_network import MLPClassifier as mlp
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
@@ -26,6 +27,10 @@ from sklearn.manifold import TSNE
 from sklearn.preprocessing import StandardScaler
 import os, sys
 from matplotlib import cm
+
+#for coupla-based sampling
+# from sdv.metadata import SingleTableMetadata
+# from sdv.single_table import GaussianCopulaSynthesizer
 
 
 class HiddenPrints:
@@ -109,7 +114,10 @@ def sample_set_generation(dataset, n_classes, n_samples_per_class):  # Make sure
 
 
 def traverse_explanations_LIME(sample_set, explainer, model, n_visits_lb, n_visits_ub, upper_limit, n_f_e, args2):
-    classes, features, n_classes, n_features, isCat, epsilon_set, canNegative, classPossibilities, dataset_name = args2
+    if len(args2) == 10:
+        classes, features, n_classes, n_features, isCat, epsilon_set, canNegative, classPossibilities, dataset_name, feature_ranges = args2
+    else:
+        classes, features, n_classes, n_features, isCat, epsilon_set, canNegative, classPossibilities, dataset_name = args2
     if isinstance(n_visits_lb, int):
         n_visits_lb = np.ones(len(classes)) * n_visits_lb
         n_visits_ub = np.ones(len(classes)) * n_visits_ub
@@ -371,7 +379,10 @@ def compute_hybrid_shap_features(explainer, model, X_train, x_q,
 
 def traverse_explanations_SHAP(sample_set, explainer, model, n_visits_lb, n_visits_ub, upper_limit, n_f_e, args2,
                                model_name, X_train=None, y_train=None, explanation_type='vanilla', num_exp = 5):
-    classes, features, n_classes, n_features, isCat, epsilon_set, canNegative, classPossibilities, dataset_name = args2
+    if len(args2) == 10:
+        classes, features, n_classes, n_features, isCat, epsilon_set, canNegative, classPossibilities, dataset_name, feature_ranges = args2
+    else:
+        classes, features, n_classes, n_features, isCat, epsilon_set, canNegative, classPossibilities, dataset_name = args2
     if isinstance(n_visits_lb, int):
         n_v_lb = np.ones(len(classes)) * n_visits_lb
         n_v_ub = np.ones(len(classes)) * n_visits_ub
@@ -490,7 +501,10 @@ def traverse_explanations_SHAP(sample_set, explainer, model, n_visits_lb, n_visi
 
 def traverse_explanations_SHAP2(sample_set, explainer, model, n_visits_lb, n_visits_ub, upper_limit, n_f_e, args2,
                                model_name, X_train=None, y_train=None, explanation_type='vanilla', num_exp = 5):
-    classes, features, n_classes, n_features, isCat, epsilon_set, canNegative, classPossibilities, dataset_name = args2
+    if len(args2) == 10:
+        classes, features, n_classes, n_features, isCat, epsilon_set, canNegative, classPossibilities, dataset_name, feature_ranges = args2
+    else:
+        classes, features, n_classes, n_features, isCat, epsilon_set, canNegative, classPossibilities, dataset_name = args2
     if isinstance(n_visits_lb, int):
         n_v_lb = np.ones(len(classes)) * n_visits_lb
         n_v_ub = np.ones(len(classes)) * n_visits_ub
@@ -640,7 +654,6 @@ def traverse_explanations_SHAP2(sample_set, explainer, model, n_visits_lb, n_vis
     #     print("Visited sample ", i, ": ", visited_samples[i], " Predicted as class ", preds[i])
     return visited_samples, preds, query
 
-import numpy as np
 
 def create_diverse_samples_hybrid(samples, classPossibilities, isCat, feature_ranges, num_desired_samples=10, pool_size=1000, refinement_steps=2):
     current_pool = np.array(samples, dtype=float)
@@ -796,13 +809,242 @@ def create_diverse_samples(samples, classPossibilities, isCat):
         current_pool = np.vstack([current_pool, best_candidate])
 
     return new_diverse_samples
+
+# For continuous datasets, we can use a Gaussian copula to model the joint distribution and sample from it to get diverse samples that respect feature correlations.
+# uses knn to select the most distinct samples from the copula-generated pool
+def create_copula_diverse_samples(samples, classPossibilities, isCat, feature_ranges, num_desired_samples=10, pool_size=1000):
+    metadata = SingleTableMetadata()
+    column_names = [f"feat_{i}" for i in range(len(samples[0]))]
+    df_real = pd.DataFrame(samples, columns=column_names)
+    metadata.detect_from_dataframe(df_real)
+
+    copula_synth = GaussianCopulaSynthesizer(metadata)
+    copula_synth.fit(df_real)
+    # synthetic_data_copula = copula_synth.sample(num_rows=10)
+    # return [row for row in synthetic_data_copula.values]
+    
+    #generate 100 samples and pick the outliers from the synthetic dataset
+    synthetic_data_copula = copula_synth.sample(num_rows=pool_size)
+    scaler = StandardScaler()
+    real_scaled = scaler.fit_transform(samples)
+    synth_scaled = scaler.transform(synthetic_data_copula)
+
+    # 2. Fit Nearest Neighbors on the REAL data
+    nn = NearestNeighbors(n_neighbors=1)
+    nn.fit(real_scaled)
+    # nn.fit(samples)
+
+    # 3. Find the distance from each SYNTHETIC row to its closest REAL row
+    distances, indices = nn.kneighbors(synth_scaled)
+    # distances, indices = nn.kneighbors(synthetic_data_copula.values)
+
+
+    # 4. Add distances to your synthetic dataframe
+    synthetic_data_copula['dist_from_real'] = distances
+
+    # 5. Pick the top 10 most "distinct" (largest distance)
+    most_distinct = synthetic_data_copula.nlargest(10, 'dist_from_real')
+    most_distinct = most_distinct.drop(columns=['dist_from_real'])
+    # print(most_distinct.values)
+    return [row for row in most_distinct.values]
+
+
+# Distance-based selection method for copula-generated samples
+# Uses manual distance calculation (compatible with mixed categorical/continuous data) instead of KNN
+def create_copula_diverse_samples_distance_based(samples, classPossibilities, isCat, feature_ranges, num_desired_samples=10, pool_size=100):
+    """
+    Generate diverse samples using Gaussian Copula with distance-based selection.
+    
+    Uses manual distance matrix calculation (Hamming for categorical, normalized Euclidean for continuous)
+    instead of KNN, allowing mixed feature type handling.
+    
+    @param samples: Real samples to base copula on
+    @param classPossibilities: Max values/cardinalities for each feature
+    @param isCat: Boolean array indicating categorical features
+    @param feature_ranges: (min, max) tuples for continuous features
+    @param num_desired_samples: Number of diverse samples to return
+    @param pool_size: Number of synthetic samples to generate before selection
+    @return: List of selected diverse samples
+    """
+    metadata = SingleTableMetadata()
+    column_names = [f"feat_{i}" for i in range(len(samples[0]))]
+    df_real = pd.DataFrame(samples, columns=column_names)
+    metadata.detect_from_dataframe(df_real)
+
+    copula_synth = GaussianCopulaSynthesizer(metadata)
+    copula_synth.fit(df_real)
+    
+    # Generate synthetic samples from copula model
+    synthetic_data = copula_synth.sample(num_rows=pool_size)
+    synthetic_array = np.array(synthetic_data.values, dtype=float)
+    real_array = np.array(samples, dtype=float)
+    
+    n_features = len(samples[0])
+    selected_samples = []
+    current_pool = real_array.copy()
+    
+    # Iteratively select most diverse samples using distance matrix approach
+    for _ in range(num_desired_samples):
+        # Calculate distance matrix between all synthetic samples and current pool
+        dist_matrix = np.zeros((len(synthetic_array), len(current_pool)))
+        
+        for feat_idx in range(n_features):
+            col_synthetic = synthetic_array[:, feat_idx][:, np.newaxis]  # (pool_size, 1)
+            col_pool = current_pool[:, feat_idx][np.newaxis, :]          # (1, current_pool_size)
+            
+            if isCat[feat_idx]:
+                # Hamming distance for categorical features
+                dist_matrix += (col_synthetic != col_pool).astype(float)
+            else:
+                # Normalized squared Euclidean distance for continuous features
+                low, high = feature_ranges[feat_idx]
+                range_val = (high - low) if (high - low) > 0 else 1
+                dist_matrix += ((col_synthetic - col_pool) / range_val)**2
+        
+        # Max-Min strategy: select synthetic sample farthest from its nearest neighbor
+        min_dists = dist_matrix.min(axis=1)
+        best_idx = np.argmax(min_dists)
+        best_sample = synthetic_array[best_idx]
+        
+        selected_samples.append(best_sample)
+        # Add to pool so next iteration considers this new sample
+        current_pool = np.vstack([current_pool, best_sample])
+        # Remove selected sample from synthetic pool to avoid reselection
+        synthetic_array = np.delete(synthetic_array, best_idx, axis=0)
+        
+        if len(synthetic_array) == 0:
+            break
+    
+    return selected_samples
+
+
+# For a hybrid approach, we can start with random sampling 
+# and then apply a local search (like a small mutation) 
+# to further increase diversity while ensuring samples remain realistic.
+def create_manifold_aware_diverse_samples_corrected(samples, classPossibilities, feature_ranges, isCat,
+                                         num_desired_samples=10, pool_size=1000, mutation_rate=0.3,
+                                         crossover_ratio=0.5, plausibility_percentile=90):
+    # SANITIZE INPUTS: Ensure no NaNs exist in the input samples or ranges
+    original_pool = np.array(samples, dtype=float)
+    if np.any(np.isnan(original_pool)):
+        original_pool = np.nan_to_num(original_pool)
+
+    current_pool = original_pool.copy()
+    n_features = len(classPossibilities)
+    n_crossover = int(pool_size * crossover_ratio)
+    n_mutation = pool_size - n_crossover
+    new_diverse_samples = []
+
+    # Precompute plausibility threshold from pairwise distances in original data
+    # Candidates farther than this from all original samples are considered off-manifold
+    if len(original_pool) > 1:
+        orig_dists = _compute_dist_matrix(original_pool, original_pool, n_features, isCat, feature_ranges)
+        np.fill_diagonal(orig_dists, np.inf)
+        nn_dists = orig_dists.min(axis=1)  # nearest-neighbor distances within original data
+        plausibility_threshold = np.percentile(nn_dists, plausibility_percentile)
+    else:
+        plausibility_threshold = np.inf
+
+    for _ in range(num_desired_samples):
+        candidates = []
+
+        # --- Crossover candidates: combine two parents to preserve feature correlations ---
+        for _ in range(n_crossover):
+            idx_a, idx_b = np.random.choice(len(current_pool), size=2, replace=False) if len(current_pool) > 1 \
+                else (0, 0)
+            parent_a, parent_b = current_pool[idx_a], current_pool[idx_b]
+            candidate = parent_a.copy()
+            # For each feature, randomly pick from one parent
+            mask = np.random.random(n_features) < 0.5
+            for i in range(n_features):
+                if mask[i]:
+                    candidate[i] = parent_b[i]
+            # Light mutation on a few features to add exploration
+            for i in range(n_features):
+                if np.random.random() < mutation_rate * 0.3:
+                    candidate[i] = _mutate_feature(candidate[i], i, isCat, classPossibilities, feature_ranges)
+            if not np.any(np.isnan(candidate)):
+                candidates.append(candidate)
+
+        # --- Mutation candidates: mutate a single parent ---
+        for _ in range(n_mutation):
+            parent = current_pool[np.random.randint(len(current_pool))]
+            candidate = parent.copy()
+            for i in range(n_features):
+                if np.random.random() < mutation_rate:
+                    candidate[i] = _mutate_feature(candidate[i], i, isCat, classPossibilities, feature_ranges)
+            if not np.any(np.isnan(candidate)):
+                candidates.append(candidate)
+
+        if not candidates:
+            continue
+
+        candidates = np.array(candidates)
+
+        # --- Plausibility filter: reject candidates too far from all original samples ---
+        dist_to_original = _compute_dist_matrix(candidates, original_pool, n_features, isCat, feature_ranges)
+        min_dist_to_original = dist_to_original.min(axis=1)
+        plausible_mask = min_dist_to_original <= plausibility_threshold
+        if not np.any(plausible_mask):
+            # Fallback: keep the closest half if none pass the threshold
+            cutoff = np.median(min_dist_to_original)
+            plausible_mask = min_dist_to_original <= cutoff
+        candidates = candidates[plausible_mask]
+        min_dist_to_original = min_dist_to_original[plausible_mask]
+
+        if len(candidates) == 0:
+            continue
+
+        # --- Diversity selection among plausible candidates ---
+        dist_to_pool = _compute_dist_matrix(candidates, current_pool, n_features, isCat, feature_ranges)
+        min_dist_to_pool = dist_to_pool.min(axis=1)
+
+        # Score = diversity (distance from pool) — candidates that are plausible but cover new ground
+        best_idx = np.argmax(min_dist_to_pool)
+        best_candidate = candidates[best_idx]
+        new_diverse_samples.append(best_candidate)
+        current_pool = np.vstack([current_pool, best_candidate])
+
+    return new_diverse_samples
+
+
+def _mutate_feature(value, idx, isCat, classPossibilities, feature_ranges):
+    """Mutate a single feature value."""
+    if isCat[idx]:
+        return np.random.randint(0, classPossibilities[idx])
+    else:
+        low, high = feature_ranges[idx]
+        if np.isnan(low) or np.isnan(high) or low == high:
+            return value
+        std_dev = (high - low) * 0.1
+        noise = np.random.normal(0, std_dev)
+        return np.clip(value + noise, low, high)
+
+
+def _compute_dist_matrix(A, B, n_features, isCat, feature_ranges):
+    """Compute pairwise distance matrix between rows of A and rows of B."""
+    dist_matrix = np.zeros((len(A), len(B)))
+    for i in range(n_features):
+        col_a = A[:, i][:, np.newaxis]
+        col_b = B[:, i][np.newaxis, :]
+        if isCat[i]:
+            dist_matrix += (col_a != col_b).astype(float)
+        else:
+            low, high = feature_ranges[i]
+            range_val = (high - low) if (high - low) > 0 else 1
+            dist_matrix += ((col_a - col_b) / range_val) ** 2
+    return dist_matrix
+
+
+# For a hybrid approach, we can start with random sampling 
+# and then apply a local search (like a small mutation) 
+# to further increase diversity while ensuring samples remain realistic.
 def create_manifold_aware_diverse_samples(samples, classPossibilities, feature_ranges, isCat, 
                                          num_desired_samples=10, pool_size=1000, mutation_rate=0.7):
-    # 1. SANITIZE INPUTS: Ensure no NaNs exist in the input samples or ranges
+    # SANITIZE INPUTS: Ensure no NaNs exist in the input samples or ranges
     current_pool = np.array(samples, dtype=float)
     if np.any(np.isnan(current_pool)):
-        # Fill NaNs with 0 or mean as a fallback
-        current_pool = np.nan_to_num(current_pool)
+        current_pool = np.nan_to_num(current_pool)  # Fill NaNs with 0 or mean as a fallback
         
     n_features = len(classPossibilities)
     new_diverse_samples = []
@@ -810,23 +1052,23 @@ def create_manifold_aware_diverse_samples(samples, classPossibilities, feature_r
     for _ in range(num_desired_samples):
         candidates = []
         for _ in range(pool_size):
-            parent = current_pool[np.random.randint(len(current_pool))]
+            parent = current_pool[np.random.randint(len(current_pool))] # Randomly pick a parent from the current pool
             candidate = parent.copy()
             
             for i in range(n_features):
-                if np.random.random() < mutation_rate:
+                if np.random.random() < mutation_rate: # Mutate this feature with some probability
                     if isCat[i]:
-                        candidate[i] = np.random.randint(0, classPossibilities[i])
+                        candidate[i] = np.random.randint(0, classPossibilities[i]) # Random category
                     else:
                         low, high = feature_ranges[i]
-                        # 2. GUARD: If range is 0 or NaN, use a small default epsilon or skip
+                        # GUARD: If range is 0 or NaN, use a small default epsilon or skip
                         if np.isnan(low) or np.isnan(high) or low == high:
                             # If feature is constant, don't mutate it
                             continue 
                             
-                        std_dev = (high - low) * 0.1
+                        std_dev = (high - low) * 0.1 
                         noise = np.random.normal(0, std_dev)
-                        candidate[i] = np.clip(candidate[i] + noise, low, high)
+                        candidate[i] = np.clip(candidate[i] + noise, low, high) # Ensure we stay within valid range
             
             # Final safety check for the candidate
             if not np.any(np.isnan(candidate)):
@@ -855,6 +1097,225 @@ def create_manifold_aware_diverse_samples(samples, classPossibilities, feature_r
         new_diverse_samples.append(best_candidate)
         current_pool = np.vstack([current_pool, best_candidate])
     return new_diverse_samples
+
+
+# SHAP-directed exploration with distance-band filtering.
+# Generates candidates by walking along SHAP directions from existing samples and
+# sweeping top-k important features. Filters by distance band (not too close = redundant,
+# not too far = off-manifold gibberish). Selects via greedy farthest-point among survivors.
+def create_shap_directed_diverse_samples(samples, classPossibilities, feature_ranges, isCat,
+                                         model, explainer, num_desired_samples=10):
+    samples_array = np.array(samples, dtype=float)
+    if np.any(np.isnan(samples_array)):
+        samples_array = np.nan_to_num(samples_array)
+
+    n_features = len(classPossibilities)
+    n_samples = len(samples_array)
+
+    # Compute SHAP values for exploration directions
+    shap_results = explainer.shap_values(samples_array)
+    if not isinstance(shap_results, list):
+        shap_results = [shap_results]
+    shap_vals = shap_results[0]  # shape: (n_samples, n_features)
+
+    # Feature range scales for normalization
+    range_scales = np.array([
+        (feature_ranges[i][1] - feature_ranges[i][0])
+        if not isCat[i] and (feature_ranges[i][1] - feature_ranges[i][0]) > 0 else 1.0
+        for i in range(n_features)
+    ])
+
+    # Distance band thresholds from pairwise distances in original data
+    if n_samples > 1:
+        orig_dists = _compute_dist_matrix(samples_array, samples_array, n_features, isCat, feature_ranges)
+        np.fill_diagonal(orig_dists, np.inf)
+        nn_dists = orig_dists.min(axis=1)
+        d_lower = np.percentile(nn_dists, 10)    # closer than this = redundant
+        d_upper = np.percentile(nn_dists, 95) * 2  # farther than this = off-manifold
+    else:
+        d_lower, d_upper = 0, np.inf
+
+    candidates = []
+
+    # --- Strategy A: SHAP-direction walk ---
+    # Step from each sample along its signed SHAP vector (and its negation) at varying magnitudes.
+    # Explores along directions the model cares about, staying near the manifold by construction.
+    step_sizes = [0.1, 0.2, 0.4, 0.7, 1.0]
+    for s_idx in range(n_samples):
+        direction = shap_vals[s_idx].copy()
+        # Normalize in feature-range-scaled space so no single feature dominates the step
+        scaled_dir = direction / range_scales
+        norm = np.linalg.norm(scaled_dir)
+        if norm < 1e-8:
+            continue
+        scaled_dir = scaled_dir / norm
+        direction_normalized = scaled_dir * range_scales  # back to feature space
+
+        for step in step_sizes:
+            for sign in [1, -1]:
+                candidate = samples_array[s_idx].copy()
+                for i in range(n_features):
+                    if isCat[i]:
+                        # Flip important categorical features at larger steps
+                        feat_importance_pct = np.percentile(np.abs(shap_vals[s_idx]), 70)
+                        if abs(shap_vals[s_idx][i]) > feat_importance_pct and step > 0.3:
+                            candidate[i] = np.random.randint(0, classPossibilities[i])
+                    else:
+                        low, high = feature_ranges[i]
+                        if np.isnan(low) or np.isnan(high) or low == high:
+                            continue
+                        candidate[i] += sign * step * direction_normalized[i]
+                        candidate[i] = np.clip(candidate[i], low, high)
+                if not np.any(np.isnan(candidate)):
+                    candidates.append(candidate)
+
+    # --- Strategy B: Single-feature sweep on top-k important features ---
+    # For each sample, vary its most influential features individually across their range.
+    # Discovers how far each important feature can stretch before leaving the manifold.
+    top_k = min(5, n_features)
+    alphas = [0.1, 0.3, 0.5, 0.7, 0.9]
+    for s_idx in range(n_samples):
+        importance = np.abs(shap_vals[s_idx])
+        top_feats = np.argsort(importance)[-top_k:]
+        for feat in top_feats:
+            if isCat[feat]:
+                for cat_val in range(classPossibilities[feat]):
+                    if cat_val != samples_array[s_idx][feat]:
+                        candidate = samples_array[s_idx].copy()
+                        candidate[feat] = cat_val
+                        candidates.append(candidate)
+            else:
+                low, high = feature_ranges[feat]
+                if np.isnan(low) or np.isnan(high) or low == high:
+                    continue
+                for alpha in alphas:
+                    candidate = samples_array[s_idx].copy()
+                    candidate[feat] = low + alpha * (high - low)
+                    candidates.append(candidate)
+
+    if not candidates:
+        return []
+
+    candidates = np.array(candidates)
+
+    # --- Distance-band filter ---
+    # Keep candidates in [d_lower, d_upper] from original samples.
+    # Too close = redundant, too far = off-manifold gibberish.
+    dist_to_original = _compute_dist_matrix(candidates, samples_array, n_features, isCat, feature_ranges)
+    min_dist = dist_to_original.min(axis=1)
+    band_mask = (min_dist >= d_lower) & (min_dist <= d_upper)
+
+    if np.sum(band_mask) < num_desired_samples:
+        # Relax: take candidates closest to the band center
+        band_center = (d_lower + d_upper) / 2
+        dist_to_center = np.abs(min_dist - band_center)
+        relaxed_indices = np.argsort(dist_to_center)[:max(num_desired_samples * 3, 100)]
+        candidates = candidates[relaxed_indices]
+    else:
+        candidates = candidates[band_mask]
+
+    if len(candidates) == 0:
+        return []
+
+    # --- Greedy farthest-point selection for diversity ---
+    current_pool = samples_array.copy()
+    selected = []
+    remaining_mask = np.ones(len(candidates), dtype=bool)
+
+    for _ in range(min(num_desired_samples, len(candidates))):
+        remaining_indices = np.where(remaining_mask)[0]
+        if len(remaining_indices) == 0:
+            break
+        dist_to_pool = _compute_dist_matrix(candidates[remaining_indices], current_pool,
+                                            n_features, isCat, feature_ranges)
+        min_dists_to_pool = dist_to_pool.min(axis=1)
+        local_best = np.argmax(min_dists_to_pool)
+        best_idx = remaining_indices[local_best]
+
+        selected.append(candidates[best_idx])
+        current_pool = np.vstack([current_pool, candidates[best_idx]])
+        remaining_mask[best_idx] = False
+
+    return selected
+
+
+# KNN-based version of create_manifold_aware_diverse_samples
+# Uses StandardScaler + NearestNeighbors for diversity selection (like create_copula_diverse_samples)
+def create_manifold_aware_diverse_samples_knn(samples, classPossibilities, feature_ranges, isCat,
+                                              num_desired_samples=10, pool_size=1000, mutation_rate=0.7):
+    """
+    Generate diverse samples using mutation-based candidate generation with KNN-based diversity selection.
+    
+    Similar to create_manifold_aware_diverse_samples but uses StandardScaler + NearestNeighbors
+    for diversity checking (like create_copula_diverse_samples) instead of manual distance matrix.
+    
+    @param samples: Real samples to base mutations on
+    @param classPossibilities: Max values/cardinalities for each feature
+    @param feature_ranges: (min, max) tuples for continuous features
+    @param isCat: Boolean array indicating categorical features
+    @param num_desired_samples: Number of diverse samples to return
+    @param pool_size: Number of candidate samples to generate before selection
+    @param mutation_rate: Probability of mutating each feature
+    @return: List of selected diverse samples
+    """
+    # SANITIZE INPUTS: Ensure no NaNs exist in the input samples or ranges
+    current_pool = np.array(samples, dtype=float)
+    if np.any(np.isnan(current_pool)):
+        current_pool = np.nan_to_num(current_pool)
+        
+    n_features = len(classPossibilities)
+    new_diverse_samples = []
+
+    for _ in range(num_desired_samples):
+        # PHASE 1: Generate candidate pool via mutations
+        candidates = []
+        for _ in range(pool_size):
+            parent = current_pool[np.random.randint(len(current_pool))]
+            candidate = parent.copy()
+            
+            for i in range(n_features):
+                if np.random.random() < mutation_rate:
+                    if isCat[i]:
+                        candidate[i] = np.random.randint(0, classPossibilities[i])
+                    else:
+                        low, high = feature_ranges[i]
+                        if np.isnan(low) or np.isnan(high) or low == high:
+                            continue
+                        std_dev = (high - low) * 0.1
+                        noise = np.random.normal(0, std_dev)
+                        candidate[i] = np.clip(candidate[i] + noise, low, high)
+            
+            if not np.any(np.isnan(candidate)):
+                candidates.append(candidate)
+        
+        if not candidates:
+            continue
+            
+        candidates = np.array(candidates)
+        
+        # PHASE 2: KNN-based diversity selection
+        # Scale the data for fair distance computation
+        scaler = StandardScaler()
+        pool_scaled = scaler.fit_transform(current_pool)
+        candidates_scaled = scaler.transform(candidates)
+        
+        # Fit Nearest Neighbors on the current pool
+        nn = NearestNeighbors(n_neighbors=1)
+        nn.fit(pool_scaled)
+        
+        # Find the distance from each candidate to its closest point in the pool
+        distances, _ = nn.kneighbors(candidates_scaled)
+        distances = distances.flatten()
+        
+        # Pick the candidate that is farthest from its nearest neighbor
+        best_idx = np.argmax(distances)
+        best_candidate = candidates[best_idx]
+        
+        new_diverse_samples.append(best_candidate)
+        current_pool = np.vstack([current_pool, best_candidate])
+        
+    return new_diverse_samples
+
 
 def find_boundary_point(target_model, x_a, x_b, iterations=10):
     """
@@ -941,6 +1402,105 @@ def generate_shap_informed_samples(model, samples, explainer, isCat, feature_ran
         
     return new_samples
 
+# Use SHAP values to identify the most influential features for two samples from different classes and then create new samples by mixing those features.
+# Decision boundary samples can be generated by interpolating between two samples from different classes and using SHAP values to identify which features to perturb for creating new samples that are likely near the boundary.
+def generate_shap_informed_samples_new(model, samples, explainer, isCat, feature_ranges, num_new_samples=10, top_k=5):
+    samples_array = np.array(samples, dtype=float)
+    preds = model.predict_proba(samples_array)
+    
+    shap_results = explainer.shap_values(samples_array)
+    
+    # Standardize to a list of arrays
+    if not isinstance(shap_results, list):
+        shap_results = [shap_results]
+
+    top_k = min(top_k, samples_array.shape[1])
+
+    # Pre-enumerate all cross-class pairs for diversity guarantee
+    all_pairs = [(i, j) for i in range(len(samples_array))
+                 for j in range(len(samples_array))
+                 if preds[i].argmax() != preds[j].argmax()]
+    if not all_pairs:
+        return []
+    random.shuffle(all_pairs)
+    pair_pool = list(all_pairs)
+
+    new_samples = []
+    for _ in range(num_new_samples):
+        # Pick diverse cross-class pairs by exhausting the pre-shuffled pool before repeating
+        if not pair_pool:
+            pair_pool = list(all_pairs)
+            random.shuffle(pair_pool)
+        idx_a, idx_b = pair_pool.pop()
+        class_a = int(preds[idx_a].argmax())
+        class_b = int(preds[idx_b].argmax())
+
+        # Ensure 1D float vectors regardless of how samples_array was constructed
+        s_a = np.array(samples_array[idx_a], dtype=float).flatten()
+        s_b = np.array(samples_array[idx_b], dtype=float).flatten()
+
+        # FIX: Check if we have one array or one per class
+        if len(shap_results) == 1:
+            # For binary models with 1 output, class index doesn't exist in shap_results
+            importance_a = np.abs(shap_results[0][idx_a])
+            importance_b = np.abs(shap_results[0][idx_b])
+        else:
+            # For multi-output models (or predict_proba)
+            importance_a = np.abs(shap_results[class_a][idx_a])
+            importance_b = np.abs(shap_results[class_b][idx_b])
+
+        # Force 1D float array — guards against object arrays or per-class SHAP outputs
+        combined_importance = np.array(importance_a + importance_b, dtype=float)
+        if combined_importance.ndim > 1:
+            combined_importance = combined_importance.sum(axis=tuple(range(1, combined_importance.ndim)))
+        combined_importance = combined_importance.flatten()
+        top_features = set(int(x) for x in np.argsort(combined_importance)[-top_k:])
+
+        # Precompute midpoint for nudging and non-top interpolation
+        midpoint = np.array([
+            random.choice([s_a[i], s_b[i]]) if isCat[i] else 0.5 * s_a[i] + 0.5 * s_b[i]
+            for i in range(len(s_a))
+        ])
+
+        child = s_a.copy()
+        for i in range(len(s_a)):
+            if i in top_features:
+                if isCat[i]:
+                    child[i] = random.choice([s_a[i], s_b[i]])
+                else:
+                    child[i] = midpoint[i]  # midpoint on influential features to push toward boundary
+            else:
+                if isCat[i]:
+                    child[i] = random.choice([s_a[i], s_b[i]])
+                else:
+                    child[i] = np.random.uniform(min(s_a[i], s_b[i]), max(s_a[i], s_b[i]))  # random for low-impact features
+
+        # Adaptive boundary search: bisect between anchor_a (class_a side) and
+        # anchor_b (class_b side). Each iteration narrows toward the decision boundary.
+        anchor_a = child.copy()
+        anchor_b = s_b.copy()
+
+        child_label = int(model.predict_proba([child])[0].argmax())
+
+        for _ in range(2):
+            mid = np.array([
+                random.choice([anchor_a[i], anchor_b[i]]) if isCat[i]
+                else 0.5 * anchor_a[i] + 0.5 * anchor_b[i]
+                for i in range(len(anchor_a))
+            ])
+            mid_label = int(model.predict_proba([mid])[0].argmax())
+            if mid_label != child_label:
+                # label flipped — boundary is between anchor_a and mid
+                anchor_b = mid
+                child = mid
+            else:
+                # same label — boundary is between mid and anchor_b
+                anchor_a = mid
+
+        new_samples.append(child)
+
+    return new_samples
+
 #   version 3: adding diverse and target-model-confident samples for categorical datasets (nursey and mushroom) in the beginning
 def traverse_explanations_SHAP3(sample_set, explainer, model, n_visits_lb, n_visits_ub, upper_limit, n_f_e, args2,
                                model_name, X_train=None, y_train=None, explanation_type='vanilla', num_exp = 5):
@@ -964,17 +1524,25 @@ def traverse_explanations_SHAP3(sample_set, explainer, model, n_visits_lb, n_vis
     # print("Generating diverse samples for categorical dataset:", dataset_name)
     # for categorical datasets, create more diverse initial samples
     
-    diverse_samples = create_manifold_aware_diverse_samples(samples, classPossibilities, feature_ranges, isCat)
+    # diverse_samples = create_copula_diverse_samples(samples, classPossibilities, feature_ranges, isCat)
+    # diverse_samples = create_manifold_aware_diverse_samples(samples, classPossibilities, feature_ranges, isCat)
+    # diverse_samples = create_manifold_aware_diverse_samples_knn(samples, classPossibilities, feature_ranges, isCat)
+    diverse_samples = create_manifold_aware_diverse_samples_corrected(samples, classPossibilities, feature_ranges, isCat)
+
+    # diverse_samples = create_copula_diverse_samples_distance_based(samples, classPossibilities, isCat, feature_ranges)
+    selected_diverse_samples = []
     while len(diverse_samples) > 0:
         current_diverse  = diverse_samples.pop(0)
         query += 1
         if(model.predict_proba([current_diverse]).max() > 0.8): # only add samples that are confidently classified
             print("Diverse samples left to process:", len(diverse_samples))
-            samples += [current_diverse]
+            selected_diverse_samples += [current_diverse]
 
-    # middle_samples = generate_shap_informed_samples(model, samples, explainer, isCat, feature_ranges, num_new_samples=10, top_k=5)
-    # samples += middle_samples
-    # for i in range(len(classes)):
+    middle_samples = generate_shap_informed_samples_new(model, samples, explainer, isCat, feature_ranges, num_new_samples=10, top_k=5)
+    samples += middle_samples
+    samples += selected_diverse_samples
+   
+   # for i in range(len(classes)):
     #     # generate target-model-confident samples near the decision boundary between class i and other classes
     #     print("Generating boundary samples for class:", classes[i])
     #     class_i_samples = [s for s, p in zip(samples, preds) if p == classes[i]]
@@ -1012,26 +1580,6 @@ def traverse_explanations_SHAP3(sample_set, explainer, model, n_visits_lb, n_vis
                     exp = explainer.shap_values(curr)[:, class_index]
                 else:
                     exp = explainer.shap_values(curr)
-            if explanation_type == 'hybrid': #my method
-                exp = compute_hybrid_shap_features(explainer, model,
-                                                         X_train=X_train,
-                                                         x_q=curr.reshape(1, -1),
-                                                         y_train=y_train,
-                                                         feature_names=features,
-                                                         top_k_local=0,
-                                                         top_k_coverage=5,
-                                                         num_cover_features=5)
-            elif explanation_type == 'topk':
-                        exp = takeTopnSHAP(exp, num_exp)    #return shap values of top-k important features
-            elif explanation_type == 'random':
-                        exp = takeRandomnSHAP(exp, num_exp)   #return shap values of k random features
-            elif explanation_type == 'zero':
-                        exp = returnAllZero(exp)    #return all-zero explanation
-            elif explanation_type == 'vanilla' or "test":
-                pass  # use original explanation
-            else:
-                raise ValueError(f"Unknown explanation_type: {explanation_type}")
-
             k = min(np.count_nonzero(exp), n_f_e)  #k = n_f_e
             sort_index = np.flip(np.argsort(abs(exp)))[:k]
             cpys = []
@@ -1135,7 +1683,6 @@ def rtest_sim(shadow, target, test_data):
             # print("Misclassified sample:", test_data[i], "Shadow prediction probabilities:", shadow_result[i], "Target prediction probabilities:", target_result[i])
 
     # average confidence score for misclassified samples among all test samples
-    confidence_scores = [target_result[i][np.argmax(target_result[i])] for i in range(len(target_result)) if np.argmax(shadow_result[i]) != np.argmax(target_result[i])]
     # print("Confidence scores for misclassified samples:", confidence_scores)
     # #visualize the confidence scores
     # if confidence_scores:
@@ -1149,12 +1696,13 @@ def rtest_sim(shadow, target, test_data):
     #     plt.close()
     #     print("Confidence scores histogram saved as 'confidence_scores_histogram.png'")
     
-    avg_confidence = sum(confidence_scores) / len(confidence_scores) if confidence_scores else 0
-    print("Average confidence score for samples classified differently by surrogate model:", avg_confidence)
+    # confidence_scores = [target_result[i][np.argmax(target_result[i])] for i in range(len(target_result)) if np.argmax(shadow_result[i]) != np.argmax(target_result[i])]
+    # avg_confidence = sum(confidence_scores) / len(confidence_scores) if confidence_scores else 0
+    # print("Average confidence score for samples classified differently by surrogate model:", avg_confidence)
 
-    correct_confidences = [target_result[i][np.argmax(target_result[i])] for i in range(len(target_result)) if np.argmax(shadow_result[i]) == np.argmax(target_result[i])]
-    avg_correct_confidence = sum(correct_confidences) / len(correct_confidences) if correct_confidences else 0
-    print("Average confidence score for samples classified same by surrogate model:", avg_correct_confidence)
+    # correct_confidences = [target_result[i][np.argmax(target_result[i])] for i in range(len(target_result)) if np.argmax(shadow_result[i]) == np.argmax(target_result[i])]
+    # avg_correct_confidence = sum(correct_confidences) / len(correct_confidences) if correct_confidences else 0
+    # print("Average confidence score for samples classified same by surrogate model:", avg_correct_confidence)
     return count / len(test_data)
 
 
@@ -1950,7 +2498,7 @@ def run_attack_auto(wd, wm, et, hms, sss, nfe, ql, so):  # make sure the types a
                 sims = []
                 for i in range(how_many_sets):  #Sample Sets
                     if max_sim[i]:
-                        print('Sample set', i, " Max similarity reached, no need for traversal!")
+                        print('Max similarity reached for sample set', i, ', skipping.')
                         sims += [1]
                         real_accuracy += [t_accuracy]
                     else:
@@ -1969,11 +2517,10 @@ def run_attack_auto(wd, wm, et, hms, sss, nfe, ql, so):  # make sure the types a
                             break
                         s_accuracy = []
                         sim = []
-                        for k in range(repetition):  #Model building
+                        for k in range(repetition):
                             if model_name == 'dt':
                                 s_model = dt(random_state=k, max_depth=depth)
                             elif model_name == 'lr':
-                                #s_model = lr(solver='sag', max_iter=10000,random_state=k)
                                 s_model = lr(max_iter=1000, random_state=k)
                             elif model_name == 'nb':
                                 s_model = mnb()
@@ -1982,20 +2529,14 @@ def run_attack_auto(wd, wm, et, hms, sss, nfe, ql, so):  # make sure the types a
                             elif model_name == 'knn':
                                 s_model = knn(n_neighbors=n_classes)
                             elif model_name == 'mlp':
-                                #This part is added later
                                 models = []
                                 for layer in range(10):
                                     l = layer + 1
-                                    models += [mlp(activation='tanh', hidden_layer_sizes=(10 * l), solver='adam',
-                                                   max_iter=10000)]
-                                    models += [mlp(activation='relu', hidden_layer_sizes=(10 * l), solver='adam',
-                                                   max_iter=10000)]
-                                    #models += [mlp(activation='tanh', hidden_layer_sizes=(10*l,10*l), solver='adam', max_iter=10000)]
-                                    #models += [mlp(activation='relu', hidden_layer_sizes=(10*l,10*l), solver='adam', max_iter=10000)]
-                                #models = [s_model, s_model1]
-                                #models = [s_model, s_model1, s_model2, s_model3]
+                                    models += [mlp(activation='tanh', hidden_layer_sizes=(10 * l), solver='adam', max_iter=10000)]
+                                    models += [mlp(activation='relu', hidden_layer_sizes=(10 * l), solver='adam', max_iter=10000)]
                             else:
                                 print('No such model!')
+                                break
                             if model_name == 'mlp':
                                 for m in models:
                                     m.fit(v_samples_np, v_pred_dec)
@@ -2005,19 +2546,15 @@ def run_attack_auto(wd, wm, et, hms, sss, nfe, ql, so):  # make sure the types a
                                 s_model.fit(v_samples_np, v_pred_dec)
                                 sim += [rtest_sim(s_model, t_model, X_test_t.values)]
                                 s_accuracy += [accuracy_score(y_test_t, s_model.predict(X_test_t.values))]
-                        if prioritizeSim:
-                            tmp = np.argmax(sim)
-                        else:
-                            tmp = np.argmax(s_accuracy)
-                        m_sim = round(sim[tmp], 4)
-                        sims += [m_sim]
+                        tmp = np.argmax(sim) if prioritizeSim else np.argmax(s_accuracy)
+                        sims += [round(sim[tmp], 4)]
                         real_accuracy += [round(s_accuracy[tmp], 4)]
-                        if m_sim == 1:
+                        if sim[tmp] == 1:
                             max_sim[i] = True
-                        print('Sample set', i, ', n_queries =', len(v_pred_dec), ', Top similarity =', m_sim)
+                        print('Sample set', i, ', Top similarity:', round(sim[tmp], 4))
                 accuracies += [real_accuracy]
                 rtest_sims += [sims]
-                print("Accuracy: ", real_accuracy, "\nSimilarity: ", sims, "\n")
+                print('\nQuery limit:', query_limit[h], '| Avg similarity:', round(np.mean(sims), 4), '| All:', sims)
 
     # Pack up all remaining variables for checking
     args0 = [which_dataset, which_model, explanation_tool]
@@ -2031,6 +2568,187 @@ def run_attack_auto(wd, wm, et, hms, sss, nfe, ql, so):  # make sure the types a
 
     return accuracies, rtest_sims, samples_mega, other_args
 
+
+def run_attack_auto_compare(wd, wm, et, hms, sss, nfe, ql, so):
+    """Same as run_attack_auto but runs both traverse_explanations_SHAP3 (main) and
+    traverse_explanations_SHAP (baseline) on the same sample sets and prints a comparison.
+    Returns (accuracies, rtest_sims, accuracies_baseline, rtest_sims_baseline, samples_mega, other_args)
+    where the first two correspond to SHAP3 and the second two to the SHAP baseline.
+    """
+    which_dataset = wd if isinstance(wd, int) else (
+        lambda: (_ for _ in ()).throw(TypeError("Only integers are allowed")))()
+    which_model = wm if isinstance(wm, int) else (
+        lambda: (_ for _ in ()).throw(TypeError("Only integers are allowed")))()
+    explanation_tool = et if isinstance(et, int) else (
+        lambda: (_ for _ in ()).throw(TypeError("Only integers are allowed")))()
+    how_many_sets = hms if isinstance(hms, int) else (
+        lambda: (_ for _ in ()).throw(TypeError("Only integers are allowed")))()
+    sample_set_sizes = sss if isinstance(sss, list) else (
+        lambda: (_ for _ in ()).throw(TypeError("Only lists are allowed")))()
+    nfe = nfe if isinstance(nfe, list) else (lambda: (_ for _ in ()).throw(TypeError("Only lists are allowed")))()
+    query_limit = ql if isinstance(ql, list) else (lambda: (_ for _ in ()).throw(TypeError("Only lists are allowed")))()
+    save_option = so if isinstance(so, bool) else (
+        lambda: (_ for _ in ()).throw(TypeError("Only booleans are allowed")))()
+
+    print('DATASET', which_dataset, which_model)
+    args1, args2 = load_dataset(which_dataset)
+    X_train, X_test, y_train, y_test, X_test_t, X_test_s, y_test_t, y_test_s = args1
+    classes, features, n_classes, n_features, isCategorical, epsilon_set, canNegative, classPossibilities, dataset_name, feature_ranges = args2
+    t_model, model_name = load_model(which_model, X_train, y_train)
+    t_accuracy = getModelInfo(t_model, X_train, y_train, X_test_t, y_test_t)
+    t_explainer = load_explainer(explanation_tool, t_model, model_name, X_train)
+    dataset_dict, model_dict, exp_dict = load_experiment_dicts()
+    print('Dataset:  ', dataset_dict.get(which_dataset))
+    print('ML Model: ', model_dict.get(which_model))
+    print(exp_dict.get(explanation_tool), 'is the explanation tool currently in use\n')
+
+    samples_mega = mega_sample_generation(X_test_s.to_numpy(), y_test_s, n_classes, sample_set_sizes, how_many_sets)
+
+    # Main method (SHAP3) results
+    accuracies = []
+    rtest_sims = []
+    # Baseline method (SHAP) results
+    accuracies_baseline = []
+    rtest_sims_baseline = []
+    prioritizeSim = True
+
+    if model_name == 'nb' or model_name == 'mlp' or model_name == 'lr' or model_name == 'knn':
+        repetition = 1
+    elif model_name == 'dt':
+        repetition = 100
+    else:
+        repetition = 10
+
+    relax_factor = 0.5
+    lb_set = list(map(lambda x: int((x // n_classes) * (1 - relax_factor) + 1), query_limit))
+    ub_set = list(map(lambda x: int((x // n_classes) * (n_classes + relax_factor) + 1), query_limit))
+    depth = 15
+    print('Lower bounds: ', lb_set, ' Upper bounds: ', ub_set, '(per class for both)\n')
+    print('-----The attack starts here!-----\n')
+
+    def _build_surrogate_and_eval(v_samples_np, v_pred_dec):
+        """Fit surrogate models on traversed samples and return best sim/accuracy."""
+        s_accuracy = []
+        sim = []
+        for k in range(repetition):
+            if model_name == 'dt':
+                s_model = dt(random_state=k, max_depth=depth)
+            elif model_name == 'lr':
+                s_model = lr(max_iter=1000, random_state=k)
+            elif model_name == 'nb':
+                s_model = mnb()
+            elif model_name == 'rdf':
+                s_model = rf(max_depth=depth, random_state=k)
+            elif model_name == 'knn':
+                s_model = knn(n_neighbors=n_classes)
+            elif model_name == 'mlp':
+                models = []
+                for layer in range(10):
+                    l = layer + 1
+                    models += [mlp(activation='tanh', hidden_layer_sizes=(10 * l), solver='adam', max_iter=10000)]
+                    models += [mlp(activation='relu', hidden_layer_sizes=(10 * l), solver='adam', max_iter=10000)]
+            else:
+                print('No such model!')
+                return 0.0, 0.0
+            if model_name == 'mlp':
+                for m in models:
+                    m.fit(v_samples_np, v_pred_dec)
+                    sim += [rtest_sim(m, t_model, X_test_t.values)]
+                    s_accuracy += [accuracy_score(y_test_t, m.predict(X_test_t.values))]
+            else:
+                s_model.fit(v_samples_np, v_pred_dec)
+                sim += [rtest_sim(s_model, t_model, X_test_t.values)]
+                s_accuracy += [accuracy_score(y_test_t, s_model.predict(X_test_t.values))]
+        tmp = np.argmax(sim) if prioritizeSim else np.argmax(s_accuracy)
+        return round(sim[tmp], 4), round(s_accuracy[tmp], 4)
+
+    for f in nfe:
+        print('Number of top features allowed to be explored (k):', f)
+        for g in range(len(sample_set_sizes)):
+            print('\nNumber of samples per class (n):', sample_set_sizes[g])
+            max_sim = [False] * how_many_sets
+            max_sim_baseline = [False] * how_many_sets
+            for h in range(len(lb_set)):
+                lb, ub = lb_set[h], ub_set[h]
+                real_accuracy = []
+                sims = []
+                real_accuracy_baseline = []
+                sims_baseline = []
+                for i in range(how_many_sets):
+                    # --- Main method: traverse_explanations_SHAP3 ---
+                    if max_sim[i]:
+                        print('Sample set', i, " [SHAP3] Max similarity reached, skipping.")
+                        sims += [1]
+                        real_accuracy += [t_accuracy]
+                    else:
+                        if explanation_tool == 0:
+                            v_samples_np, v_pred_dec, n_query = traverse_explanations_LIME(samples_mega[i][g],
+                                                                                           t_explainer, t_model, lb, ub,
+                                                                                           query_limit[h], f, args2)
+                        elif explanation_tool == 1:
+                            v_samples_np, v_pred_dec, n_query = traverse_explanations_SHAP3(samples_mega[i][g],
+                                                                                            t_explainer, t_model, lb, ub,
+                                                                                            query_limit[h], f, args2,
+                                                                                            model_name, nfe, X_train,
+                                                                                            y_train)
+                        else:
+                            print('No valid explanation tool selected')
+                            break
+                        m_sim, m_acc = _build_surrogate_and_eval(v_samples_np, v_pred_dec)
+                        sims += [m_sim]
+                        real_accuracy += [m_acc]
+                        if m_sim == 1:
+                            max_sim[i] = True
+                        print(f'[SHAP3]     Sample set {i}, n_queries={len(v_pred_dec)}, Top similarity={m_sim}')
+
+                    # --- Baseline: traverse_explanations_SHAP ---
+                    if explanation_tool == 1:
+                        if max_sim_baseline[i]:
+                            print('Sample set', i, " [SHAP base] Max similarity reached, skipping.")
+                            sims_baseline += [1]
+                            real_accuracy_baseline += [t_accuracy]
+                        else:
+                            v_samples_np_b, v_pred_dec_b, n_query_b = traverse_explanations_SHAP(
+                                samples_mega[i][g], t_explainer, t_model, lb, ub,
+                                query_limit[h], f, args2, model_name, X_train, y_train)
+                            m_sim_b, m_acc_b = _build_surrogate_and_eval(v_samples_np_b, v_pred_dec_b)
+                            sims_baseline += [m_sim_b]
+                            real_accuracy_baseline += [m_acc_b]
+                            if m_sim_b == 1:
+                                max_sim_baseline[i] = True
+                            print(f'[SHAP base] Sample set {i}, n_queries={len(v_pred_dec_b)}, Top similarity={m_sim_b}')
+
+                accuracies += [real_accuracy]
+                rtest_sims += [sims]
+                accuracies_baseline += [real_accuracy_baseline]
+                rtest_sims_baseline += [sims_baseline]
+
+                avg_main = round(np.mean(sims), 4) if sims else 0
+                avg_base = round(np.mean(sims_baseline), 4) if sims_baseline else 0
+                print(f"\n=== Query limit {query_limit[h]} | k={f} | n={sample_set_sizes[g]} ===")
+                print(f"  [SHAP3 main]    Avg similarity: {avg_main}  | All: {sims}")
+                if explanation_tool == 1:
+                    print(f"  [SHAP baseline] Avg similarity: {avg_base}  | All: {sims_baseline}")
+                    print(f"  Difference (main - baseline): {round(avg_main - avg_base, 4):+.4f}\n")
+
+    args0 = [which_dataset, which_model, explanation_tool]
+    args3 = [t_model, model_name, t_accuracy, t_explainer]
+    args4 = [how_many_sets, sample_set_sizes, nfe, query_limit]
+    other_args = [args0, args1, args2, args3, args4]
+
+    accuracies, rtest_sims = argmaxing(accuracies, rtest_sims, args4)
+    if save_option:
+        save_results(dataset_name, model_name, accuracies, rtest_sims, samples_mega)
+
+    print("\n========== FINAL COMPARISON SUMMARY ==========")
+    print(f"  [SHAP3 main]    Overall avg similarity: {round(np.mean([s for batch in rtest_sims for s in batch]), 4)}")
+    if explanation_tool == 1 and rtest_sims_baseline:
+        flat_base = [s for batch in rtest_sims_baseline for s in batch]
+        print(f"  [SHAP baseline] Overall avg similarity: {round(np.mean(flat_base), 4)}")
+        print(f"  Overall difference (main - baseline): {round(np.mean([s for batch in rtest_sims for s in batch]) - np.mean(flat_base), 4):+.4f}")
+    print("===============================================\n")
+
+    return accuracies, rtest_sims, accuracies_baseline, rtest_sims_baseline, samples_mega, other_args
 
 
 def run_attack_auto_v2(wd, wm, et, hms, sss, nfe, ql, so, top_exp=5):  # make sure the types are correct
@@ -2052,7 +2770,10 @@ def run_attack_auto_v2(wd, wm, et, hms, sss, nfe, ql, so, top_exp=5):  # make su
     ## Unpack args
     args1, args2 = load_dataset(which_dataset)
     X_train, X_test, y_train, y_test, X_test_t, X_test_s, y_test_t, y_test_s = args1
-    classes, features, n_classes, n_features, isCategorical, epsilon_set, canNegative, classPossibilities, dataset_name = args2
+    if len(args2) == 10:
+        classes, features, n_classes, n_features, isCategorical, epsilon_set, canNegative, classPossibilities, dataset_name, feature_ranges = args2
+    else:
+        classes, features, n_classes, n_features, isCategorical, epsilon_set, canNegative, classPossibilities, dataset_name = args2
     # explanation_types = ["vanilla", "topk", "random", "zero", "hybrid", "local", "test"]
     explanation_types = ["vanilla"]
     # corr = X_train.corr(numeric_only=True)
@@ -2224,7 +2945,10 @@ def generateNewSamples(sample_set, local_explainer, local_model, nfe, args2, mod
       v_pred_dec: list of labels (if available in sample entries) or None
       n_query: number of explanation queries performed (perturbed samples tested)
     """
-    classes, features, n_classes, n_features, isCat, epsilon_set, canNegative, classPossibilities, dataset_name = args2
+    if len(args2) == 10:
+        classes, features, n_classes, n_features, isCat, epsilon_set, canNegative, classPossibilities, dataset_name, feature_ranges = args2
+    else:
+        classes, features, n_classes, n_features, isCat, epsilon_set, canNegative, classPossibilities, dataset_name = args2
 
     samples = np.asarray(sample_set)
     # detect whether samples have an appended label (common in this repo)
@@ -2237,26 +2961,24 @@ def generateNewSamples(sample_set, local_explainer, local_model, nfe, args2, mod
     # helper: robust shap extraction for a single-row input
     def _extract_shap_vector(shap_out):
         arr = np.asarray(shap_out)
-        try:
-            if arr.ndim == 3:
-                # common: (1, n_features, n_classes) or (n_classes, 1, n_features)
-                if arr.shape[0] == 1 and arr.shape[1] >= n_features:
-                    return arr[0, :n_features, 0] if arr.shape[2] > 1 else arr[0, :n_features, 0]
-                if arr.shape[1] == 1 and arr.shape[2] >= n_features:
-                    return arr[0, 0, :n_features]
-                # fallback: collapse last axis
-                return arr.reshape(-1, n_features).mean(axis=0)
-            elif arr.ndim == 2:
-                # (1, n_features) or (n_features, n_classes)
-                if arr.shape[0] == 1:
-                    return arr[0, :n_features].astype(float).flatten()
-                if arr.shape[1] == n_features:
-                    return arr.mean(axis=0)[:n_features].astype(float).flatten()
-                return arr.flatten()[:n_features].astype(float).flatten()
-            else:
-                return arr.flatten()[:n_features].astype(float).flatten()
-        except Exception:
-            return np.zeros(n_features, dtype=float)
+        if arr.ndim == 3:
+            # common: (1, n_features, n_classes) or (n_classes, 1, n_features)
+            if arr.shape[0] == 1 and arr.shape[1] >= n_features:
+                return arr[0, :n_features, 0] if arr.shape[2] > 1 else arr[0, :n_features, 0]
+            if arr.shape[1] == 1 and arr.shape[2] >= n_features:
+                return arr[0, 0, :n_features]
+            # fallback: collapse last axis
+            return arr.reshape(-1, n_features).mean(axis=0)
+        elif arr.ndim == 2:
+            # (1, n_features) or (n_features, n_classes)
+            if arr.shape[0] == 1:
+                return arr[0, :n_features].astype(float).flatten()
+            if arr.shape[1] == n_features:
+                return arr.mean(axis=0)[:n_features].astype(float).flatten()
+            return arr.flatten()[:n_features].astype(float).flatten()
+        else:
+            return arr.flatten()[:n_features].astype(float).flatten()
+
 
     # iterate through provided sample_set
     for idx in range(len(samples)):
@@ -2269,12 +2991,9 @@ def generateNewSamples(sample_set, local_explainer, local_model, nfe, args2, mod
             label = None
 
         # 1) get original explanation vector for x
-        try:
-            # hasattr(local_explainer, 'shap_values'):
-            orig_shap = local_explainer.shap_values(x)
-            phi = _extract_shap_vector(orig_shap)
-        except Exception:
-            phi = np.zeros(n_features, dtype=float)
+        # hasattr(local_explainer, 'shap_values'):
+        orig_shap = local_explainer.shap_values(x)
+        phi = _extract_shap_vector(orig_shap)
 
         # if explanation is all zeros, skip (no meaningful top feature)
         if np.allclose(phi, 0):
@@ -2290,26 +3009,17 @@ def generateNewSamples(sample_set, local_explainer, local_model, nfe, args2, mod
             perturbed_variants = []
             if isCat[feat]:
                 # categorical: change by +1 modulo number of possibilities if available
-                try:
-                    maxc = int(classPossibilities[feat]) if classPossibilities and len(classPossibilities) > feat else None
-                except Exception:
-                    maxc = None
+                maxc = int(classPossibilities[feat]) if classPossibilities and len(classPossibilities) > feat else None
                 new_x = x.ravel().copy()
                 if maxc and maxc > 1:
-                    try:
-                        new_x[feat] = (int(new_x[feat]) + 1) % maxc
-                    except Exception:
-                        new_x[feat] = new_x[feat]
-                else:
+                    new_x[feat] = (int(new_x[feat]) + 1) % maxc
+
                     # fallback: flip between 0/1
                     new_x[feat] = 0 if new_x[feat] != 0 else 1
                 perturbed_variants.append(new_x)
             else:
                 # numeric: apply +epsilon and -epsilon
-                try:
-                    eps = float(epsilon_set[feat]) if epsilon_set and len(epsilon_set) > feat else 0.0
-                except Exception:
-                    eps = 0.0
+                eps = float(epsilon_set[feat]) if epsilon_set and len(epsilon_set) > feat else 0.0
                 if eps == 0.0:
                     # small fallback epsilon if none provided
                     eps = 1e-3
@@ -2370,7 +3080,10 @@ def run_attack_auto_v3(wd, wm, et, hms, sss, nfe, ql, so, top_exp=5):  # make su
     ## Unpack args
     args1, args2 = load_dataset(which_dataset)
     X_train, X_test, y_train, y_test, X_test_t, X_test_s, y_test_t, y_test_s = args1
-    classes, features, n_classes, n_features, isCategorical, epsilon_set, canNegative, classPossibilities, dataset_name = args2
+    if len(args2) == 10:
+        classes, features, n_classes, n_features, isCategorical, epsilon_set, canNegative, classPossibilities, dataset_name, feature_ranges = args2
+    else:
+        classes, features, n_classes, n_features, isCategorical, epsilon_set, canNegative, classPossibilities, dataset_name = args2
     explanation_types = ["vanilla", "topk", "random", "zero"]
 
     t_model, model_name = load_model(which_model, X_train, y_train)
