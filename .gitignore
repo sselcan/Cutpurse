@@ -21,5 +21,5 @@ paper/*.fdb_latexmk
 paper/*.synctex.gz
 paper/*.toc
 
-# Note: experiment logs (ssm/*.log, _*.log) are deliberately NOT ignored here —
+# Note: experiment logs (src/*.log, _*.log) are deliberately NOT ignored here —
 # decide per file whether a run log belongs in the repo.

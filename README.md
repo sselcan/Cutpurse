@@ -22,7 +22,7 @@ one is not credited to the other.
 
 ## Layout
 
-    ssm/
+    src/
       attack_utils.py         core attack: explanation traversal, sample generation, boundary search
       generative_attack.py    generative / synthetic-query variants
       max_cover.py            coverage-based selection
@@ -37,11 +37,11 @@ one is not credited to the other.
 ## Running
 
 ```bash
-pip install -r ssm/requirements.txt
+pip install -r src/requirements.txt
 ```
 
-The drivers under `ssm/` are standalone scripts; each writes its own results and is run directly,
-e.g. `python ssm/lime_paper_run.py`. Datasets are fetched by the loaders in `attack_utils.py`
+The drivers under `src/` are standalone scripts; each writes its own results and is run directly,
+e.g. `python src/lime_paper_run.py`. Datasets are fetched by the loaders in `attack_utils.py`
 rather than vendored into the repo.
 
 ## Status
