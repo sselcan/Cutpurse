@@ -1,0 +1,67 @@
+[
+  {
+    "dataset": "adult",
+    "model": "lr",
+    "Q": 1000,
+    "base": 0.7901,
+    "nodense": 0.7551,
+    "dense": 0.7549,
+    "d_dense_nod": -0.0002,
+    "p_dense_nod": 0.6547,
+    "d_dense_base": -0.0352,
+    "p_dense_base": 0.4922,
+    "secs": 6956.6
+  },
+  {
+    "dataset": "adult",
+    "model": "nb",
+    "Q": 1000,
+    "base": 0.8322,
+    "nodense": 0.9522,
+    "dense": 0.9507,
+    "d_dense_nod": -0.0015,
+    "p_dense_nod": 0.1797,
+    "d_dense_base": 0.1185,
+    "p_dense_base": 0.002,
+    "secs": 6804.7
+  },
+  {
+    "dataset": "adult",
+    "model": "knn",
+    "Q": 1000,
+    "base": 0.8331,
+    "nodense": 0.871,
+    "dense": 0.8713,
+    "d_dense_nod": 0.0003,
+    "p_dense_nod": 1.0,
+    "d_dense_base": 0.0383,
+    "p_dense_base": 0.002,
+    "secs": 6729.3
+  },
+  {
+    "dataset": "adult",
+    "model": "dt",
+    "Q": 1000,
+    "base": 0.7766,
+    "nodense": 0.7625,
+    "dense": 0.7565,
+    "d_dense_nod": -0.0059,
+    "p_dense_nod": 0.4631,
+    "d_dense_base": -0.02,
+    "p_dense_base": 0.8457,
+    "secs": 4242.0
+  },
+  {
+    "dataset": "adult",
+    "model": "rdf",
+    "Q": 1000,
+    "base": 0.7844,
+    "nodense": 0.8654,
+    "dense": 0.8675,
+    "d_dense_nod": 0.0021,
+    "p_dense_nod": 0.1441,
+    "d_dense_base": 0.0832,
+    "p_dense_base": 0.002,
+    "secs": 2122.6
+  }
+]

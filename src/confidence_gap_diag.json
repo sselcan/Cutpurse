@@ -1,0 +1,436 @@
+[
+  {
+    "dataset": "adult",
+    "model": "lr",
+    "feat_type": "mixed",
+    "how_many_sets": 10,
+    "query_limit": 500,
+    "methods": {
+      "base": {
+        "rows": [
+          {
+            "set": 0,
+            "n_query": 501,
+            "n_dis": 485,
+            "disagreed_conf": 0.6611,
+            "agreed_conf": 0.8587,
+            "gap": 0.1975,
+            "similarity": 0.9007
+          },
+          {
+            "set": 1,
+            "n_query": 501,
+            "n_dis": 703,
+            "disagreed_conf": 0.6895,
+            "agreed_conf": 0.8642,
+            "gap": 0.1746,
+            "similarity": 0.8561
+          },
+          {
+            "set": 2,
+            "n_query": 501,
+            "n_dis": 826,
+            "disagreed_conf": 0.7132,
+            "agreed_conf": 0.8647,
+            "gap": 0.1514,
+            "similarity": 0.8309
+          },
+          {
+            "set": 3,
+            "n_query": 501,
+            "n_dis": 661,
+            "disagreed_conf": 0.7939,
+            "agreed_conf": 0.8461,
+            "gap": 0.0522,
+            "similarity": 0.8647
+          },
+          {
+            "set": 4,
+            "n_query": 501,
+            "n_dis": 822,
+            "disagreed_conf": 0.7847,
+            "agreed_conf": 0.85,
+            "gap": 0.0653,
+            "similarity": 0.8317
+          },
+          {
+            "set": 5,
+            "n_query": 501,
+            "n_dis": 1015,
+            "disagreed_conf": 0.7876,
+            "agreed_conf": 0.8525,
+            "gap": 0.065,
+            "similarity": 0.7922
+          },
+          {
+            "set": 6,
+            "n_query": 501,
+            "n_dis": 1025,
+            "disagreed_conf": 0.7541,
+            "agreed_conf": 0.8616,
+            "gap": 0.1075,
+            "similarity": 0.7901
+          },
+          {
+            "set": 7,
+            "n_query": 501,
+            "n_dis": 606,
+            "disagreed_conf": 0.8407,
+            "agreed_conf": 0.8388,
+            "gap": -0.0019,
+            "similarity": 0.8759
+          },
+          {
+            "set": 8,
+            "n_query": 501,
+            "n_dis": 879,
+            "disagreed_conf": 0.7363,
+            "agreed_conf": 0.8616,
+            "gap": 0.1253,
+            "similarity": 0.82
+          },
+          {
+            "set": 9,
+            "n_query": 501,
+            "n_dis": 499,
+            "disagreed_conf": 0.8147,
+            "agreed_conf": 0.8418,
+            "gap": 0.0271,
+            "similarity": 0.8978
+          }
+        ],
+        "avg": {
+          "disagreed_conf": 0.7576,
+          "agreed_conf": 0.854,
+          "gap": 0.0964,
+          "similarity": 0.846,
+          "n_neg_gap": 1
+        }
+      },
+      "shap3": {
+        "rows": [
+          {
+            "set": 0,
+            "n_query": 501,
+            "n_dis": 713,
+            "disagreed_conf": 0.6928,
+            "agreed_conf": 0.864,
+            "gap": 0.1712,
+            "similarity": 0.854
+          },
+          {
+            "set": 1,
+            "n_query": 501,
+            "n_dis": 345,
+            "disagreed_conf": 0.6612,
+            "agreed_conf": 0.8526,
+            "gap": 0.1913,
+            "similarity": 0.9294
+          },
+          {
+            "set": 2,
+            "n_query": 501,
+            "n_dis": 867,
+            "disagreed_conf": 0.7356,
+            "agreed_conf": 0.8614,
+            "gap": 0.1258,
+            "similarity": 0.8225
+          },
+          {
+            "set": 3,
+            "n_query": 501,
+            "n_dis": 701,
+            "disagreed_conf": 0.7038,
+            "agreed_conf": 0.8617,
+            "gap": 0.1579,
+            "similarity": 0.8565
+          },
+          {
+            "set": 4,
+            "n_query": 501,
+            "n_dis": 563,
+            "disagreed_conf": 0.7809,
+            "agreed_conf": 0.8466,
+            "gap": 0.0657,
+            "similarity": 0.8847
+          },
+          {
+            "set": 5,
+            "n_query": 501,
+            "n_dis": 844,
+            "disagreed_conf": 0.7064,
+            "agreed_conf": 0.8668,
+            "gap": 0.1604,
+            "similarity": 0.8272
+          },
+          {
+            "set": 6,
+            "n_query": 501,
+            "n_dis": 558,
+            "disagreed_conf": 0.6691,
+            "agreed_conf": 0.861,
+            "gap": 0.1919,
+            "similarity": 0.8857
+          },
+          {
+            "set": 7,
+            "n_query": 501,
+            "n_dis": 708,
+            "disagreed_conf": 0.7262,
+            "agreed_conf": 0.8582,
+            "gap": 0.132,
+            "similarity": 0.855
+          },
+          {
+            "set": 8,
+            "n_query": 501,
+            "n_dis": 1016,
+            "disagreed_conf": 0.7571,
+            "agreed_conf": 0.8606,
+            "gap": 0.1034,
+            "similarity": 0.792
+          },
+          {
+            "set": 9,
+            "n_query": 501,
+            "n_dis": 97,
+            "disagreed_conf": 0.5424,
+            "agreed_conf": 0.8451,
+            "gap": 0.3026,
+            "similarity": 0.9801
+          }
+        ],
+        "avg": {
+          "disagreed_conf": 0.6976,
+          "agreed_conf": 0.8578,
+          "gap": 0.1602,
+          "similarity": 0.8687,
+          "n_neg_gap": 0
+        }
+      }
+    },
+    "shap3_minus_base": {
+      "disagreed_conf": -0.06,
+      "gap": 0.0638,
+      "similarity": 0.0227
+    },
+    "combo": "adult/lr"
+  },
+  {
+    "dataset": "nursery",
+    "model": "lr",
+    "feat_type": "categorical",
+    "how_many_sets": 10,
+    "query_limit": 500,
+    "methods": {
+      "base": {
+        "rows": [
+          {
+            "set": 0,
+            "n_query": 190,
+            "n_dis": 198,
+            "disagreed_conf": 0.7074,
+            "agreed_conf": 0.7705,
+            "gap": 0.0631,
+            "similarity": 0.8981
+          },
+          {
+            "set": 1,
+            "n_query": 178,
+            "n_dis": 383,
+            "disagreed_conf": 0.8223,
+            "agreed_conf": 0.7498,
+            "gap": -0.0725,
+            "similarity": 0.803
+          },
+          {
+            "set": 2,
+            "n_query": 156,
+            "n_dis": 316,
+            "disagreed_conf": 0.9041,
+            "agreed_conf": 0.7369,
+            "gap": -0.1673,
+            "similarity": 0.8374
+          },
+          {
+            "set": 3,
+            "n_query": 139,
+            "n_dis": 454,
+            "disagreed_conf": 0.7397,
+            "agreed_conf": 0.7715,
+            "gap": 0.0318,
+            "similarity": 0.7665
+          },
+          {
+            "set": 4,
+            "n_query": 201,
+            "n_dis": 587,
+            "disagreed_conf": 0.797,
+            "agreed_conf": 0.7498,
+            "gap": -0.0472,
+            "similarity": 0.698
+          },
+          {
+            "set": 5,
+            "n_query": 169,
+            "n_dis": 588,
+            "disagreed_conf": 0.8193,
+            "agreed_conf": 0.7401,
+            "gap": -0.0792,
+            "similarity": 0.6975
+          },
+          {
+            "set": 6,
+            "n_query": 180,
+            "n_dis": 480,
+            "disagreed_conf": 0.8183,
+            "agreed_conf": 0.7463,
+            "gap": -0.0721,
+            "similarity": 0.7531
+          },
+          {
+            "set": 7,
+            "n_query": 177,
+            "n_dis": 660,
+            "disagreed_conf": 0.7984,
+            "agreed_conf": 0.7464,
+            "gap": -0.052,
+            "similarity": 0.6605
+          },
+          {
+            "set": 8,
+            "n_query": 225,
+            "n_dis": 243,
+            "disagreed_conf": 0.7809,
+            "agreed_conf": 0.7617,
+            "gap": -0.0192,
+            "similarity": 0.875
+          },
+          {
+            "set": 9,
+            "n_query": 190,
+            "n_dis": 143,
+            "disagreed_conf": 0.7621,
+            "agreed_conf": 0.7642,
+            "gap": 0.0022,
+            "similarity": 0.9264
+          }
+        ],
+        "avg": {
+          "disagreed_conf": 0.795,
+          "agreed_conf": 0.7537,
+          "gap": -0.0412,
+          "similarity": 0.7915,
+          "n_neg_gap": 7
+        }
+      },
+      "shap3": {
+        "rows": [
+          {
+            "set": 0,
+            "n_query": 302,
+            "n_dis": 157,
+            "disagreed_conf": 0.6333,
+            "agreed_conf": 0.7755,
+            "gap": 0.1422,
+            "similarity": 0.9192
+          },
+          {
+            "set": 1,
+            "n_query": 330,
+            "n_dis": 148,
+            "disagreed_conf": 0.6636,
+            "agreed_conf": 0.7723,
+            "gap": 0.1087,
+            "similarity": 0.9239
+          },
+          {
+            "set": 2,
+            "n_query": 336,
+            "n_dis": 192,
+            "disagreed_conf": 0.8048,
+            "agreed_conf": 0.7596,
+            "gap": -0.0452,
+            "similarity": 0.9012
+          },
+          {
+            "set": 3,
+            "n_query": 334,
+            "n_dis": 136,
+            "disagreed_conf": 0.6363,
+            "agreed_conf": 0.7737,
+            "gap": 0.1374,
+            "similarity": 0.93
+          },
+          {
+            "set": 4,
+            "n_query": 357,
+            "n_dis": 279,
+            "disagreed_conf": 0.6499,
+            "agreed_conf": 0.7832,
+            "gap": 0.1333,
+            "similarity": 0.8565
+          },
+          {
+            "set": 5,
+            "n_query": 335,
+            "n_dis": 203,
+            "disagreed_conf": 0.6908,
+            "agreed_conf": 0.7726,
+            "gap": 0.0818,
+            "similarity": 0.8956
+          },
+          {
+            "set": 6,
+            "n_query": 389,
+            "n_dis": 152,
+            "disagreed_conf": 0.6808,
+            "agreed_conf": 0.7711,
+            "gap": 0.0903,
+            "similarity": 0.9218
+          },
+          {
+            "set": 7,
+            "n_query": 340,
+            "n_dis": 315,
+            "disagreed_conf": 0.7082,
+            "agreed_conf": 0.7749,
+            "gap": 0.0666,
+            "similarity": 0.838
+          },
+          {
+            "set": 8,
+            "n_query": 374,
+            "n_dis": 195,
+            "disagreed_conf": 0.6723,
+            "agreed_conf": 0.7743,
+            "gap": 0.102,
+            "similarity": 0.8997
+          },
+          {
+            "set": 9,
+            "n_query": 345,
+            "n_dis": 101,
+            "disagreed_conf": 0.6023,
+            "agreed_conf": 0.7729,
+            "gap": 0.1706,
+            "similarity": 0.948
+          }
+        ],
+        "avg": {
+          "disagreed_conf": 0.6742,
+          "agreed_conf": 0.773,
+          "gap": 0.0988,
+          "similarity": 0.9034,
+          "n_neg_gap": 1
+        }
+      }
+    },
+    "shap3_minus_base": {
+      "disagreed_conf": -0.1208,
+      "gap": 0.14,
+      "similarity": 0.1119
+    },
+    "combo": "nursery/lr"
+  }
+]

@@ -1,0 +1,48 @@
+============================================================================================
+LIME vs SHAP boundary-normal cosine check (prob space, paired eval points)
+============================================================================================
+[adult/lr/prob] cos(w_single,g)=0.852  cos(w_single,p)=-0.076  cos(w_batch@200,g)=0.999  cos(w_batch@200,p)=-0.078
+    LIME: cos(w_lime,g)=0.998  cos(w_lime,w_single)=0.738  topk_hit(g): lime=1.00 vs shap=1.00
+[adult/nb/prob] cos(w_single,g)=0.423  cos(w_single,p)=-0.083  cos(w_batch@200,g)=0.476  cos(w_batch@200,p)=-0.147
+    LIME: cos(w_lime,g)=0.485  cos(w_lime,w_single)=0.252  topk_hit(g): lime=1.00 vs shap=1.00
+[adult/knn/prob] cos(w_single,g)=0.298  cos(w_single,p)=-0.024  cos(w_batch@200,g)=0.082  cos(w_batch@200,p)=0.023
+    LIME: cos(w_lime,g)=0.087  cos(w_lime,w_single)=-0.003  topk_hit(g): lime=1.00 vs shap=1.00
+[adult/mlp/prob] cos(w_single,g)=0.970  cos(w_single,p)=0.245  cos(w_batch@200,g)=0.999  cos(w_batch@200,p)=0.117
+    LIME: cos(w_lime,g)=0.655  cos(w_lime,w_single)=0.638  topk_hit(g): lime=1.00 vs shap=1.00
+[breast/lr/prob] cos(w_single,g)=0.012  cos(w_single,p)=-0.002  cos(w_batch@200,g)=0.052  cos(w_batch@200,p)=-0.002
+    LIME: cos(w_lime,g)=0.014  cos(w_lime,w_single)=0.059  topk_hit(g): lime=0.00 vs shap=0.03
+[breast/nb/prob] cos(w_single,g)=-0.043  cos(w_single,p)=-0.001  cos(w_batch@200,g)=-0.150  cos(w_batch@200,p)=-0.007
+    LIME: cos(w_lime,g)=-0.029  cos(w_lime,w_single)=-0.023  topk_hit(g): lime=0.10 vs shap=0.03
+[breast/knn/prob] cos(w_single,g)=nan  cos(w_single,p)=0.138  cos(w_batch@200,g)=nan  cos(w_batch@200,p)=-0.004
+    LIME: cos(w_lime,g)=nan  cos(w_lime,w_single)=-0.035  topk_hit(g): lime=0.01 vs shap=0.34
+[breast/mlp/prob] cos(w_single,g)=0.035  cos(w_single,p)=0.002  cos(w_batch@200,g)=0.152  cos(w_batch@200,p)=-0.002
+    LIME: cos(w_lime,g)=0.029  cos(w_lime,w_single)=0.086  topk_hit(g): lime=0.00 vs shap=0.01
+[mushroom/lr/prob] cos(w_single,g)=nan  cos(w_single,p)=0.236  cos(w_batch@200,g)=nan  cos(w_batch@200,p)=0.257
+    LIME: cos(w_lime,g)=nan  cos(w_lime,w_single)=0.477  topk_hit(g): lime=nan vs shap=nan
+[mushroom/nb/prob] cos(w_single,g)=nan  cos(w_single,p)=0.403  cos(w_batch@200,g)=nan  cos(w_batch@200,p)=0.271
+    LIME: cos(w_lime,g)=nan  cos(w_lime,w_single)=0.529  topk_hit(g): lime=nan vs shap=nan
+[mushroom/knn/prob] cos(w_single,g)=nan  cos(w_single,p)=0.000  cos(w_batch@200,g)=nan  cos(w_batch@200,p)=-0.039
+    LIME: cos(w_lime,g)=nan  cos(w_lime,w_single)=0.193  topk_hit(g): lime=nan vs shap=nan
+[mushroom/mlp/prob] cos(w_single,g)=nan  cos(w_single,p)=-0.165  cos(w_batch@200,g)=nan  cos(w_batch@200,p)=-0.056
+    LIME: cos(w_lime,g)=nan  cos(w_lime,w_single)=0.463  topk_hit(g): lime=nan vs shap=nan
+
+============================================================================================
+SUMMARY  (mean cosine; higher = better recovery of the true boundary normal g)
+============================================================================================
+combo          cos(ws,g) cos(wl,g) cos(wl,ws)  hit_s  hit_l
+-----------------------------------------------------------
+adult/lr           0.852     0.998      0.738   1.00   1.00
+adult/nb           0.423     0.485      0.252   1.00   1.00
+adult/knn          0.298     0.087     -0.003   1.00   1.00
+adult/mlp          0.970     0.655      0.638   1.00   1.00
+breast/lr          0.012     0.014      0.059   0.03   0.00
+breast/nb         -0.043    -0.029     -0.023   0.03   0.10
+breast/knn           nan       nan     -0.035   0.34   0.01
+breast/mlp         0.035     0.029      0.086   0.01   0.00
+mushroom/lr          nan       nan      0.477    nan    nan
+mushroom/nb          nan       nan      0.529    nan    nan
+mushroom/knn         nan       nan      0.193    nan    nan
+mushroom/mlp         nan       nan      0.463    nan    nan
+
+ws=SHAP single normal, wl=LIME normal, hit=top-k feature-selection agreement with g (continuous axes).
+Wrote lime_normal_diag.json

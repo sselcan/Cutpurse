@@ -1,0 +1,254 @@
+[
+  {
+    "dataset": "iris",
+    "model": "DT",
+    "main": NaN,
+    "baseline": NaN,
+    "pct": null
+  },
+  {
+    "dataset": "iris",
+    "model": "LR",
+    "main": NaN,
+    "baseline": NaN,
+    "pct": null
+  },
+  {
+    "dataset": "iris",
+    "model": "NB",
+    "main": NaN,
+    "baseline": NaN,
+    "pct": null
+  },
+  {
+    "dataset": "iris",
+    "model": "KNN",
+    "main": NaN,
+    "baseline": NaN,
+    "pct": null
+  },
+  {
+    "dataset": "iris",
+    "model": "RF",
+    "main": NaN,
+    "baseline": NaN,
+    "pct": null
+  },
+  {
+    "dataset": "iris",
+    "model": "P",
+    "main": 0.9864,
+    "baseline": 0.9318,
+    "pct": 5.85
+  },
+  {
+    "dataset": "crop",
+    "model": "DT",
+    "main": 0.9467,
+    "baseline": 0.9478,
+    "pct": -0.12
+  },
+  {
+    "dataset": "crop",
+    "model": "LR",
+    "main": 0.84,
+    "baseline": 0.7906,
+    "pct": 6.25
+  },
+  {
+    "dataset": "crop",
+    "model": "NB",
+    "main": 0.78,
+    "baseline": 0.7376,
+    "pct": 5.74
+  },
+  {
+    "dataset": "crop",
+    "model": "KNN",
+    "main": 0.7086,
+    "baseline": 0.698,
+    "pct": 1.51
+  },
+  {
+    "dataset": "crop",
+    "model": "RF",
+    "main": 0.9804,
+    "baseline": 0.9839,
+    "pct": -0.36
+  },
+  {
+    "dataset": "crop",
+    "model": "P",
+    "main": 0.6518,
+    "baseline": 0.6322,
+    "pct": 3.1
+  },
+  {
+    "dataset": "adult",
+    "model": "DT",
+    "main": 0.8235,
+    "baseline": 0.8368,
+    "pct": -1.59
+  },
+  {
+    "dataset": "adult",
+    "model": "LR",
+    "main": 0.8733,
+    "baseline": 0.8652,
+    "pct": 0.93
+  },
+  {
+    "dataset": "adult",
+    "model": "NB",
+    "main": 0.9492,
+    "baseline": 0.8998,
+    "pct": 5.48
+  },
+  {
+    "dataset": "adult",
+    "model": "KNN",
+    "main": 0.8661,
+    "baseline": 0.8548,
+    "pct": 1.32
+  },
+  {
+    "dataset": "adult",
+    "model": "RF",
+    "main": 0.926,
+    "baseline": 0.9167,
+    "pct": 1.02
+  },
+  {
+    "dataset": "adult",
+    "model": "P",
+    "main": 0.8761,
+    "baseline": 0.7836,
+    "pct": 11.79
+  },
+  {
+    "dataset": "breast",
+    "model": "DT",
+    "main": 0.9718,
+    "baseline": 0.9388,
+    "pct": 3.51
+  },
+  {
+    "dataset": "breast",
+    "model": "LR",
+    "main": 0.9329,
+    "baseline": 0.9318,
+    "pct": 0.13
+  },
+  {
+    "dataset": "breast",
+    "model": "NB",
+    "main": 0.9353,
+    "baseline": 0.9282,
+    "pct": 0.76
+  },
+  {
+    "dataset": "breast",
+    "model": "KNN",
+    "main": 0.9024,
+    "baseline": 0.8918,
+    "pct": 1.19
+  },
+  {
+    "dataset": "breast",
+    "model": "RF",
+    "main": 0.9812,
+    "baseline": 0.9741,
+    "pct": 0.72
+  },
+  {
+    "dataset": "breast",
+    "model": "P",
+    "main": 1.0,
+    "baseline": 1.0,
+    "pct": 0.0
+  },
+  {
+    "dataset": "nursery",
+    "model": "DT",
+    "main": 0.9284,
+    "baseline": 0.9341,
+    "pct": -0.61
+  },
+  {
+    "dataset": "nursery",
+    "model": "LR",
+    "main": 0.8859,
+    "baseline": 0.7962,
+    "pct": 11.27
+  },
+  {
+    "dataset": "nursery",
+    "model": "NB",
+    "main": 0.5522,
+    "baseline": 0.5327,
+    "pct": 3.65
+  },
+  {
+    "dataset": "nursery",
+    "model": "KNN",
+    "main": 0.5815,
+    "baseline": 0.5623,
+    "pct": 3.41
+  },
+  {
+    "dataset": "nursery",
+    "model": "RF",
+    "main": 0.9259,
+    "baseline": 0.9313,
+    "pct": -0.57
+  },
+  {
+    "dataset": "nursery",
+    "model": "P",
+    "main": 0.8286,
+    "baseline": 0.7318,
+    "pct": 13.22
+  },
+  {
+    "dataset": "mushroom",
+    "model": "DT",
+    "main": 0.9456,
+    "baseline": 0.9474,
+    "pct": -0.19
+  },
+  {
+    "dataset": "mushroom",
+    "model": "LR",
+    "main": 0.7943,
+    "baseline": 0.7363,
+    "pct": 7.88
+  },
+  {
+    "dataset": "mushroom",
+    "model": "NB",
+    "main": 0.8984,
+    "baseline": 0.9054,
+    "pct": -0.77
+  },
+  {
+    "dataset": "mushroom",
+    "model": "KNN",
+    "main": 0.8415,
+    "baseline": 0.829,
+    "pct": 1.5
+  },
+  {
+    "dataset": "mushroom",
+    "model": "RF",
+    "main": 0.9475,
+    "baseline": 0.9511,
+    "pct": -0.39
+  },
+  {
+    "dataset": "mushroom",
+    "model": "P",
+    "main": 0.8751,
+    "baseline": 0.8268,
+    "pct": 5.84
+  }
+]

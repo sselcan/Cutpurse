@@ -1,0 +1,54 @@
+Dataset name in traverse_explanations_LIME3: adult
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: adult
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: adult
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: adult
+1 2 3 4 5 6 7 8 9   split 0 done (113.6s)
+Dataset name in traverse_explanations_LIME3: adult
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: adult
+1 2 3 4 5 6 7 8 9 10 Dataset name in traverse_explanations_LIME3: adult
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: adult
+1 2 3 4 5 6 7 8 9 10   split 1 done (227.8s)
+Dataset name in traverse_explanations_LIME3: adult
+1 2 3 4 5 6 7 8 9 10 Dataset name in traverse_explanations_LIME3: adult
+1 2 3 4 5 6 7 8 9 10 Dataset name in traverse_explanations_LIME3: adult
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: adult
+1 2 3 4 5 6 7 8 9   split 2 done (350.7s)
+Dataset name in traverse_explanations_LIME3: adult
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: adult
+1 2 3 4 5 6 7 8 9 10 Dataset name in traverse_explanations_LIME3: adult
+1 2 3 4 5 6 7 8 9 10 Dataset name in traverse_explanations_LIME3: adult
+1 2 3 4 5 6 7 8 9   split 3 done (472.8s)
+Dataset name in traverse_explanations_LIME3: adult
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: adult
+1 2 3 4 5 6 7 8 9 10 Dataset name in traverse_explanations_LIME3: adult
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: adult
+1 2 3 4 5 6 7 8 9   split 4 done (3208.8s)
+Dataset name in traverse_explanations_LIME3: adult
+1 2 3 4 5 6 7 8 9 10 Dataset name in traverse_explanations_LIME3: adult
+1 2 3 4 5 6 7 8 9 10 Dataset name in traverse_explanations_LIME3: adult
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: adult
+1 2 3 4 5 6 7 8 9   split 5 done (3300.7s)
+Dataset name in traverse_explanations_LIME3: adult
+1 2 3 4 5 6 7 8 9 10 Dataset name in traverse_explanations_LIME3: adult
+1 2 3 4 5 6 7 8 9 10 Dataset name in traverse_explanations_LIME3: adult
+1 2 3 4 5 6 7 8 9 10 Dataset name in traverse_explanations_LIME3: adult
+1 2 3 4 5 6 7 8 9 10   split 6 done (3390.9s)
+Dataset name in traverse_explanations_LIME3: adult
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: adult
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: adult
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: adult
+1 2 3 4 5 6 7 8 9   split 7 done (3484.4s)
+Dataset name in traverse_explanations_LIME3: adult
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: adult
+1 2 3 4 5 6 7 8 9 10 Dataset name in traverse_explanations_LIME3: adult
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: adult
+1 2 3 4 5 6 7 8 9   split 8 done (3577.0s)
+Dataset name in traverse_explanations_LIME3: adult
+1 2 3 4 5 6 7 8 9 10 Dataset name in traverse_explanations_LIME3: adult
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: adult
+1 2 3 4 5 6 7 8 9 10 Dataset name in traverse_explanations_LIME3: adult
+1 2 3 4 5 6 7 8 9 10   split 9 done (3677.0s)
+ROW adult LR | C4 0.0691 (p=0.084) | C5 0.0134 (p=0.432)
+ROW adult NB | C4 0.0219 (p=0.232) | C5 0.0022 (p=0.492)
+ROW adult KNN | C4 0.0296 (p=0.020) | C5 0.0253 (p=0.020)
+ROW adult DT | C4 0.002 (p=0.846) | C5 -0.0394 (p=0.322)

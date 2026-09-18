@@ -1,0 +1,30 @@
+================================================================================================
+[crop/lr/continuous] cross: bin=0.110 limeNaive=0.000 rand=0.000  |  total=+0.110 feat_ch=+0.000 thr_ch=+0.110
+[adult/lr/mixed] cross: bin=0.149 limeNaive=0.036 rand=0.030  |  total=+0.119 feat_ch=+0.006 thr_ch=+0.112
+[nursery/nb/categorical] cross: bin=0.410 limeNaive=0.330 rand=0.152  |  total=+0.258 feat_ch=+0.178 thr_ch=+0.080
+[nursery/lr/categorical] cross: bin=0.432 limeNaive=0.346 rand=0.148  |  total=+0.284 feat_ch=+0.198 thr_ch=+0.086
+[mushroom/lr/categorical] cross: bin=0.416 limeNaive=0.443 rand=0.062  |  total=+0.354 feat_ch=+0.381 thr_ch=-0.027
+[nursery/knn/categorical] cross: bin=0.441 limeNaive=0.321 rand=0.232  |  total=+0.209 feat_ch=+0.089 thr_ch=+0.120
+
+================================================================================================
+SUMMARY  (crossing rates + channel decomposition vs the ablation)
+================================================================================================
+combo         type            bin  limeN   rand   total  feat_ch  thr_ch      abl
+---------------------------------------------------------------------------------
+crop/lr       continuous    0.110  0.000  0.000  +0.110   +0.000  +0.110  -0.0042
+adult/lr      mixed         0.149  0.036  0.030  +0.119   +0.006  +0.112  +0.0078
+nursery/nb    categorical   0.410  0.330  0.152  +0.258   +0.178  +0.080  +0.0191
+nursery/lr    categorical   0.432  0.346  0.148  +0.284   +0.198  +0.086  +0.0198
+mushroom/lr   categorical   0.416  0.443  0.062  +0.354   +0.381  -0.027  +0.0352
+nursery/knn   categorical   0.441  0.321  0.232  +0.209   +0.089  +0.120  +0.0442
+
+correlation with ablation (all 6):
+  total    pearson=+0.66  spearman=+0.66
+  feat_ch  pearson=+0.59  spearman=+0.66
+  thr_ch   pearson=-0.37  spearman=-0.03
+correlation with ablation (categorical only, n=4):
+  total    pearson=-0.19  spearman=-0.20
+  feat_ch  pearson=-0.08  spearman=-0.20
+  thr_ch   pearson=-0.03  spearman=+0.40
+
+Wrote lime_threshold_diag.json

@@ -1,0 +1,30 @@
+<IPython.core.display.HTML object>
+[adult+RF Q=100 ] base=0.8669 shap3=0.8579 nd=0.8789 dv=0.8781 | nd-base=+0.0120 nd-shap3=+0.0210 nd-dv=+0.0008
+[adult+RF Q=250 ] base=0.8823 shap3=0.8786 nd=0.8991 dv=0.8953 | nd-base=+0.0168 nd-shap3=+0.0205 nd-dv=+0.0038
+[adult+RF Q=500 ] base=0.8974 shap3=0.8860 nd=0.9112 dv=0.9067 | nd-base=+0.0138 nd-shap3=+0.0252 nd-dv=+0.0045
+[adult+RF Q=1000] base=0.9058 shap3=0.9000 nd=0.9225 dv=0.9212 | nd-base=+0.0167 nd-shap3=+0.0225 nd-dv=+0.0013
+<IPython.core.display.HTML object>
+[breast+DT Q=100 ] base=0.8661 shap3=0.8556 nd=0.8751 dv=0.8792 | nd-base=+0.0090 nd-shap3=+0.0195 nd-dv=-0.0041
+[breast+DT Q=250 ] base=0.8874 shap3=0.8844 nd=0.9044 dv=0.8825 | nd-base=+0.0170 nd-shap3=+0.0200 nd-dv=+0.0219
+[breast+DT Q=500 ] base=0.9198 shap3=0.9321 nd=0.9215 dv=0.9066 | nd-base=+0.0017 nd-shap3=-0.0106 nd-dv=+0.0149
+<IPython.core.display.HTML object>
+[crop+DT Q=100 ] base=0.8325 shap3=0.8485 nd=0.8220 dv=0.8147 | nd-base=-0.0105 nd-shap3=-0.0265 nd-dv=+0.0073
+[crop+DT Q=250 ] base=0.8908 shap3=0.8766 nd=0.8782 dv=0.8508 | nd-base=-0.0126 nd-shap3=+0.0016 nd-dv=+0.0274
+[crop+DT Q=500 ] base=0.9039 shap3=0.9126 nd=0.9164 dv=0.9085 | nd-base=+0.0125 nd-shap3=+0.0038 nd-dv=+0.0079
+[crop+DT Q=1000] base=0.9279 shap3=0.9472 nd=0.9298 dv=0.9277 | nd-base=+0.0019 nd-shap3=-0.0174 nd-dv=+0.0021
+
+=== SURVIVOR Q-SWEEP (mean-eval, 20 paired sets) ===
+data    mdl      Q    base   shap3      nd      dv  nd-base  nd-shap3   nd-dv
+-----------------------------------------------------------------------------
+adult   RF     100  0.8669  0.8579  0.8789  0.8781  +0.0120   +0.0210 +0.0008
+adult   RF     250  0.8823  0.8786  0.8991  0.8953  +0.0168   +0.0205 +0.0038
+adult   RF     500  0.8974  0.8860  0.9112  0.9067  +0.0138   +0.0252 +0.0045
+adult   RF    1000  0.9058  0.9000  0.9225  0.9212  +0.0167   +0.0225 +0.0013
+breast  DT     100  0.8661  0.8556  0.8751  0.8792  +0.0090   +0.0195 -0.0041
+breast  DT     250  0.8874  0.8844  0.9044  0.8825  +0.0170   +0.0200 +0.0219
+breast  DT     500  0.9198  0.9321  0.9215  0.9066  +0.0017   -0.0106 +0.0149
+crop    DT     100  0.8325  0.8485  0.8220  0.8147  -0.0105   -0.0265 +0.0073
+crop    DT     250  0.8908  0.8766  0.8782  0.8508  -0.0126   +0.0016 +0.0274
+crop    DT     500  0.9039  0.9126  0.9164  0.9085  +0.0125   +0.0038 +0.0079
+crop    DT    1000  0.9279  0.9472  0.9298  0.9277  +0.0019   -0.0174 +0.0021
+done

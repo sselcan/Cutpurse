@@ -1,0 +1,79 @@
+
+### adult+RF (30 sets) ###
+<IPython.core.display.HTML object>
+  [adult+RF] set 0: baseline=0.857 shap3=0.860 shap4b=0.872 shap4b_nodiv=0.870 scaffold=0.868
+  [adult+RF] set 1: baseline=0.913 shap3=0.888 shap4b=0.858 shap4b_nodiv=0.876 scaffold=0.897
+  [adult+RF] set 2: baseline=0.854 shap3=0.844 shap4b=0.917 shap4b_nodiv=0.924 scaffold=0.883
+  [adult+RF] set 3: baseline=0.862 shap3=0.863 shap4b=0.903 shap4b_nodiv=0.897 scaffold=0.876
+  [adult+RF] set 4: baseline=0.932 shap3=0.878 shap4b=0.915 shap4b_nodiv=0.913 scaffold=0.898
+  [adult+RF] set 5: baseline=0.887 shap3=0.929 shap4b=0.922 shap4b_nodiv=0.924 scaffold=0.911
+  [adult+RF] set 6: baseline=0.890 shap3=0.923 shap4b=0.914 shap4b_nodiv=0.910 scaffold=0.892
+  [adult+RF] set 7: baseline=0.894 shap3=0.893 shap4b=0.912 shap4b_nodiv=0.920 scaffold=0.895
+  [adult+RF] set 8: baseline=0.886 shap3=0.903 shap4b=0.909 shap4b_nodiv=0.918 scaffold=0.881
+  [adult+RF] set 9: baseline=0.896 shap3=0.815 shap4b=0.916 shap4b_nodiv=0.925 scaffold=0.856
+  [adult+RF] set 10: baseline=0.906 shap3=0.909 shap4b=0.867 shap4b_nodiv=0.903 scaffold=0.880
+  [adult+RF] set 11: baseline=0.901 shap3=0.912 shap4b=0.926 shap4b_nodiv=0.926 scaffold=0.853
+  [adult+RF] set 12: baseline=0.929 shap3=0.921 shap4b=0.919 shap4b_nodiv=0.891 scaffold=0.903
+  [adult+RF] set 13: baseline=0.897 shap3=0.923 shap4b=0.914 shap4b_nodiv=0.928 scaffold=0.862
+  [adult+RF] set 14: baseline=0.861 shap3=0.898 shap4b=0.931 shap4b_nodiv=0.913 scaffold=0.860
+  [adult+RF] set 15: baseline=0.857 shap3=0.851 shap4b=0.923 shap4b_nodiv=0.914 scaffold=0.857
+  [adult+RF] set 16: baseline=0.906 shap3=0.904 shap4b=0.916 shap4b_nodiv=0.919 scaffold=0.912
+  [adult+RF] set 17: baseline=0.928 shap3=0.922 shap4b=0.901 shap4b_nodiv=0.920 scaffold=0.931
+  [adult+RF] set 18: baseline=0.891 shap3=0.920 shap4b=0.907 shap4b_nodiv=0.927 scaffold=0.899
+  [adult+RF] set 19: baseline=0.892 shap3=0.912 shap4b=0.918 shap4b_nodiv=0.903 scaffold=0.872
+  [adult+RF] set 20: baseline=0.914 shap3=0.894 shap4b=0.894 shap4b_nodiv=0.919 scaffold=0.921
+  [adult+RF] set 21: baseline=0.924 shap3=0.926 shap4b=0.932 shap4b_nodiv=0.930 scaffold=0.914
+  [adult+RF] set 22: baseline=0.906 shap3=0.922 shap4b=0.928 shap4b_nodiv=0.934 scaffold=0.905
+  [adult+RF] set 23: baseline=0.891 shap3=0.886 shap4b=0.916 shap4b_nodiv=0.908 scaffold=0.882
+  [adult+RF] set 24: baseline=0.938 shap3=0.919 shap4b=0.919 shap4b_nodiv=0.911 scaffold=0.934
+  [adult+RF] set 25: baseline=0.873 shap3=0.889 shap4b=0.923 shap4b_nodiv=0.901 scaffold=0.877
+  [adult+RF] set 26: baseline=0.928 shap3=0.867 shap4b=0.934 shap4b_nodiv=0.924 scaffold=0.905
+  [adult+RF] set 27: baseline=0.917 shap3=0.885 shap4b=0.922 shap4b_nodiv=0.932 scaffold=0.896
+  [adult+RF] set 28: baseline=0.897 shap3=0.899 shap4b=0.936 shap4b_nodiv=0.934 scaffold=0.898
+  [adult+RF] set 29: baseline=0.933 shap3=0.918 shap4b=0.931 shap4b_nodiv=0.914 scaffold=0.911
+  -> baseline=0.8986 shap3=0.8958 shap4b=0.9132 shap4b_nodiv=0.9142 scaffold=0.8909
+
+### crop+DT (30 sets) ###
+<IPython.core.display.HTML object>
+  [crop+DT] set 0: baseline=0.918 shap3=0.905 shap4b=0.861 shap4b_nodiv=0.947 scaffold=0.949
+  [crop+DT] set 1: baseline=0.912 shap3=0.926 shap4b=0.849 shap4b_nodiv=0.901 scaffold=0.874
+  [crop+DT] set 2: baseline=0.948 shap3=0.912 shap4b=0.965 shap4b_nodiv=0.908 scaffold=0.946
+  [crop+DT] set 3: baseline=0.902 shap3=0.924 shap4b=0.884 shap4b_nodiv=0.907 scaffold=0.898
+  [crop+DT] set 4: baseline=0.910 shap3=0.903 shap4b=0.889 shap4b_nodiv=0.885 scaffold=0.899
+  [crop+DT] set 5: baseline=0.892 shap3=0.926 shap4b=0.893 shap4b_nodiv=0.890 scaffold=0.897
+  [crop+DT] set 6: baseline=0.886 shap3=0.893 shap4b=0.867 shap4b_nodiv=0.904 scaffold=0.851
+  [crop+DT] set 7: baseline=0.923 shap3=0.934 shap4b=0.915 shap4b_nodiv=0.911 scaffold=0.901
+  [crop+DT] set 8: baseline=0.929 shap3=0.903 shap4b=0.913 shap4b_nodiv=0.912 scaffold=0.947
+  [crop+DT] set 9: baseline=0.877 shap3=0.881 shap4b=0.889 shap4b_nodiv=0.902 scaffold=0.921
+  [crop+DT] set 10: baseline=0.871 shap3=0.893 shap4b=0.962 shap4b_nodiv=0.924 scaffold=0.862
+  [crop+DT] set 11: baseline=0.928 shap3=0.948 shap4b=0.934 shap4b_nodiv=0.899 scaffold=0.926
+  [crop+DT] set 12: baseline=0.945 shap3=0.925 shap4b=0.904 shap4b_nodiv=0.945 scaffold=0.924
+  [crop+DT] set 13: baseline=0.867 shap3=0.842 shap4b=0.923 shap4b_nodiv=0.945 scaffold=0.853
+  [crop+DT] set 14: baseline=0.895 shap3=0.913 shap4b=0.897 shap4b_nodiv=0.873 scaffold=0.932
+  [crop+DT] set 15: baseline=0.933 shap3=0.939 shap4b=0.887 shap4b_nodiv=0.926 scaffold=0.932
+  [crop+DT] set 16: baseline=0.908 shap3=0.946 shap4b=0.929 shap4b_nodiv=0.951 scaffold=0.903
+  [crop+DT] set 17: baseline=0.975 shap3=0.956 shap4b=0.943 shap4b_nodiv=0.949 scaffold=0.937
+  [crop+DT] set 18: baseline=0.892 shap3=0.929 shap4b=0.838 shap4b_nodiv=0.946 scaffold=0.872
+  [crop+DT] set 19: baseline=0.892 shap3=0.862 shap4b=0.867 shap4b_nodiv=0.898 scaffold=0.902
+  [crop+DT] set 20: baseline=0.937 shap3=0.891 shap4b=0.902 shap4b_nodiv=0.925 scaffold=0.876
+  [crop+DT] set 21: baseline=0.912 shap3=0.933 shap4b=0.913 shap4b_nodiv=0.925 scaffold=0.900
+  [crop+DT] set 22: baseline=0.872 shap3=0.892 shap4b=0.907 shap4b_nodiv=0.904 scaffold=0.895
+  [crop+DT] set 23: baseline=0.876 shap3=0.905 shap4b=0.902 shap4b_nodiv=0.944 scaffold=0.908
+  [crop+DT] set 24: baseline=0.925 shap3=0.913 shap4b=0.888 shap4b_nodiv=0.879 scaffold=0.915
+  [crop+DT] set 25: baseline=0.912 shap3=0.906 shap4b=0.904 shap4b_nodiv=0.924 scaffold=0.907
+  [crop+DT] set 26: baseline=0.876 shap3=0.893 shap4b=0.876 shap4b_nodiv=0.946 scaffold=0.837
+  [crop+DT] set 27: baseline=0.864 shap3=0.903 shap4b=0.851 shap4b_nodiv=0.899 scaffold=0.892
+  [crop+DT] set 28: baseline=0.872 shap3=0.935 shap4b=0.841 shap4b_nodiv=0.924 scaffold=0.921
+  [crop+DT] set 29: baseline=0.913 shap3=0.898 shap4b=0.884 shap4b_nodiv=0.936 scaffold=0.902
+  -> baseline=0.9053 shap3=0.911 shap4b=0.896 shap4b_nodiv=0.9176 scaffold=0.9027
+
+=== SHAP4b ABLATION (30 sets, mean±std, Q=500): diverse-drop + scaffold control ===
+data   mdl      baseline        shap3       shap4b    s4b_nodiv     scaffold
+----------------------------------------------------------------------------
+adult  RF   0.8986±0.024 0.8958±0.028 0.9132±0.019 0.9142±0.015 0.8909±0.022
+crop   DT   0.9053±0.027 0.9110±0.025 0.8960±0.032 0.9176±0.022 0.9027±0.029
+
+Reading it:
+  Q1 (drop diverse): compare shap4b_nodiv vs shap4b
+  Q2 (is it Phase 2?): compare shap4b vs scaffold (if ~equal, densification adds nothing)
+done

@@ -1,0 +1,15 @@
+  split 0 done (833.0s)
+  split 1 done (1660.5s)
+  split 2 done (2480.8s)
+  split 3 done (3297.5s)
+  split 4 done (4128.6s)
+  split 5 done (4944.8s)
+  split 6 done (5772.8s)
+  split 7 done (6616.0s)
+  split 8 done (7463.5s)
+  split 9 done (8321.0s)
+ROW pendigits LR | thr_tgt 0.0922 | leak by n [0.0602, 0.0288, 0.0191, 0.0107, 0.0147]
+ROW pendigits NB | thr_tgt 0.0505 | leak by n [0.0146, 0.0046, 0.0087, -0.003, 0.0043]
+ROW pendigits KNN | thr_tgt -0.0001 | leak by n [-0.0049, 0.003, 0.0018, -0.0021, 0.0021]
+ROW pendigits DT | thr_tgt 0.1114 | leak by n [0.0028, 0.0122, -0.0154, 0.0118, 0.0267]
+ROW pendigits RF | thr_tgt -0.0063 | leak by n [0.0078, -0.0236, 0.001, -0.0006, 0.0022]

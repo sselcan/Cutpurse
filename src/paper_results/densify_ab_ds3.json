@@ -1,0 +1,67 @@
+[
+  {
+    "dataset": "breast",
+    "model": "lr",
+    "Q": 100,
+    "base": 0.7224,
+    "nodense": 0.74,
+    "dense": 0.7212,
+    "d_dense_nod": -0.0188,
+    "p_dense_nod": 0.722,
+    "d_dense_base": -0.0012,
+    "p_dense_base": 0.8457,
+    "secs": 1062.9
+  },
+  {
+    "dataset": "breast",
+    "model": "nb",
+    "Q": 100,
+    "base": 0.8494,
+    "nodense": 0.8671,
+    "dense": 0.8694,
+    "d_dense_nod": 0.0024,
+    "p_dense_nod": 0.593,
+    "d_dense_base": 0.02,
+    "p_dense_base": 0.1379,
+    "secs": 762.9
+  },
+  {
+    "dataset": "breast",
+    "model": "knn",
+    "Q": 100,
+    "base": 0.6741,
+    "nodense": 0.8471,
+    "dense": 0.8541,
+    "d_dense_nod": 0.0071,
+    "p_dense_nod": 0.0977,
+    "d_dense_base": 0.18,
+    "p_dense_base": 0.002,
+    "secs": 1645.3
+  },
+  {
+    "dataset": "breast",
+    "model": "dt",
+    "Q": 100,
+    "base": 0.6253,
+    "nodense": 0.7671,
+    "dense": 0.7624,
+    "d_dense_nod": -0.0047,
+    "p_dense_nod": 0.7349,
+    "d_dense_base": 0.1371,
+    "p_dense_base": 0.0109,
+    "secs": 619.7
+  },
+  {
+    "dataset": "breast",
+    "model": "rdf",
+    "Q": 100,
+    "base": 0.8127,
+    "nodense": 0.87,
+    "dense": 0.8576,
+    "d_dense_nod": -0.0124,
+    "p_dense_nod": 0.8457,
+    "d_dense_base": 0.0449,
+    "p_dense_base": 0.1934,
+    "secs": 449.0
+  }
+]

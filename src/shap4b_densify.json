@@ -1,0 +1,74 @@
+[
+  {
+    "dataset": "nursery",
+    "model": "DT",
+    "baseline_mean": 0.8963,
+    "baseline_std": 0.0085,
+    "shap3_mean": 0.8806,
+    "shap3_std": 0.0135,
+    "shap4_mean": 0.8696,
+    "shap4_std": 0.0145,
+    "shap4b_mean": 0.8762,
+    "shap4b_std": 0.0158
+  },
+  {
+    "dataset": "nursery",
+    "model": "RF",
+    "baseline_mean": 0.9047,
+    "baseline_std": 0.007,
+    "shap3_mean": 0.8965,
+    "shap3_std": 0.0047,
+    "shap4_mean": 0.8987,
+    "shap4_std": 0.007,
+    "shap4b_mean": 0.8916,
+    "shap4b_std": 0.0106
+  },
+  {
+    "dataset": "mushroom",
+    "model": "DT",
+    "baseline_mean": 0.9124,
+    "baseline_std": 0.0631,
+    "shap3_mean": 0.9165,
+    "shap3_std": 0.0434,
+    "shap4_mean": 0.9099,
+    "shap4_std": 0.0505,
+    "shap4b_mean": 0.9237,
+    "shap4b_std": 0.0552
+  },
+  {
+    "dataset": "mushroom",
+    "model": "RF",
+    "baseline_mean": 0.9283,
+    "baseline_std": 0.0193,
+    "shap3_mean": 0.9198,
+    "shap3_std": 0.0443,
+    "shap4_mean": 0.9265,
+    "shap4_std": 0.0183,
+    "shap4b_mean": 0.9316,
+    "shap4b_std": 0.0156
+  },
+  {
+    "dataset": "adult",
+    "model": "DT",
+    "baseline_mean": 0.8081,
+    "baseline_std": 0.0327,
+    "shap3_mean": 0.8088,
+    "shap3_std": 0.0399,
+    "shap4_mean": 0.8071,
+    "shap4_std": 0.0424,
+    "shap4b_mean": 0.8056,
+    "shap4b_std": 0.0345
+  },
+  {
+    "dataset": "adult",
+    "model": "RF",
+    "baseline_mean": 0.8962,
+    "baseline_std": 0.0204,
+    "shap3_mean": 0.8911,
+    "shap3_std": 0.0238,
+    "shap4_mean": 0.9083,
+    "shap4_std": 0.0159,
+    "shap4b_mean": 0.9172,
+    "shap4b_std": 0.0135
+  }
+]

@@ -1,0 +1,12 @@
+Dataset: 1, Model: 0, Explanation Tool: 1
+Average Similarity: 0.9207750000000001, Std Dev: 0.018338289860289594
+Dataset: 1, Model: 2, Explanation Tool: 1
+Average Similarity: 0.7576499999999999, Std Dev: 0.08834705711001357
+Dataset: 3, Model: 2, Explanation Tool: 1
+Average Similarity: 0.9094, Std Dev: 0.04792988629237503
+Dataset: 3, Model: 2, Explanation Tool: 1
+Average Similarity: 0.8964699999999999, Std Dev: 0.05685984611305239
+Dataset: 3, Model: 2, Explanation Tool: 1
+Average Similarity: 0.8964699999999999, Std Dev: 0.05685984611305239
+Dataset: 3, Model: 2, Explanation Tool: 1
+Average Similarity: 0.8470449999999999, Std Dev: 0.09572119658153047

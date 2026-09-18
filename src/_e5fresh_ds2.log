@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "/Users/sesame/FaithfulDefense/ssm/_lime_auxdisc.py", line 116, in <module>
+    run_ds(a.ds, models=mods, out_dir=a.out, aux=a.aux)
+  File "/Users/sesame/FaithfulDefense/ssm/_lime_auxdisc.py", line 55, in run_ds
+    topQ = Q_BY_DS[ds][-1]
+KeyError: 2

@@ -1,0 +1,54 @@
+Dataset name in traverse_explanations_LIME3: pendigits
+1 2 3 4 Dataset name in traverse_explanations_LIME3: pendigits
+1 2 3 4 Dataset name in traverse_explanations_LIME3: pendigits
+1 2 3 4 Dataset name in traverse_explanations_LIME3: pendigits
+1 2 3 4   split 0 done (62.5s)
+Dataset name in traverse_explanations_LIME3: pendigits
+1 2 3 4 Dataset name in traverse_explanations_LIME3: pendigits
+1 2 3 4 Dataset name in traverse_explanations_LIME3: pendigits
+1 2 3 4 Dataset name in traverse_explanations_LIME3: pendigits
+1 2 3 4   split 1 done (124.1s)
+Dataset name in traverse_explanations_LIME3: pendigits
+1 2 3 4 Dataset name in traverse_explanations_LIME3: pendigits
+1 2 3 4 Dataset name in traverse_explanations_LIME3: pendigits
+1 2 3 4 Dataset name in traverse_explanations_LIME3: pendigits
+1 2 3 4   split 2 done (185.6s)
+Dataset name in traverse_explanations_LIME3: pendigits
+1 2 3 4 Dataset name in traverse_explanations_LIME3: pendigits
+1 2 3 4 Dataset name in traverse_explanations_LIME3: pendigits
+1 2 3 4 Dataset name in traverse_explanations_LIME3: pendigits
+1 2 3 4   split 3 done (246.5s)
+Dataset name in traverse_explanations_LIME3: pendigits
+1 2 3 4 Dataset name in traverse_explanations_LIME3: pendigits
+1 2 3 4 Dataset name in traverse_explanations_LIME3: pendigits
+1 2 3 4 Dataset name in traverse_explanations_LIME3: pendigits
+1 2 3 4   split 4 done (308.9s)
+Dataset name in traverse_explanations_LIME3: pendigits
+1 2 3 4 Dataset name in traverse_explanations_LIME3: pendigits
+1 2 3 4 Dataset name in traverse_explanations_LIME3: pendigits
+1 2 3 4 Dataset name in traverse_explanations_LIME3: pendigits
+1 2 3 4   split 5 done (372.5s)
+Dataset name in traverse_explanations_LIME3: pendigits
+1 2 3 4 Dataset name in traverse_explanations_LIME3: pendigits
+1 2 3 4 Dataset name in traverse_explanations_LIME3: pendigits
+1 2 3 4 Dataset name in traverse_explanations_LIME3: pendigits
+1 2 3 4   split 6 done (434.6s)
+Dataset name in traverse_explanations_LIME3: pendigits
+1 2 3 4 Dataset name in traverse_explanations_LIME3: pendigits
+1 2 3 4 Dataset name in traverse_explanations_LIME3: pendigits
+1 2 3 4 Dataset name in traverse_explanations_LIME3: pendigits
+1 2 3 4   split 7 done (750.1s)
+Dataset name in traverse_explanations_LIME3: pendigits
+1 2 3 4 Dataset name in traverse_explanations_LIME3: pendigits
+1 2 3 4 Dataset name in traverse_explanations_LIME3: pendigits
+1 2 3 4 Dataset name in traverse_explanations_LIME3: pendigits
+1 2 3 4   split 8 done (3186.6s)
+Dataset name in traverse_explanations_LIME3: pendigits
+1 2 3 4 Dataset name in traverse_explanations_LIME3: pendigits
+1 2 3 4 Dataset name in traverse_explanations_LIME3: pendigits
+1 2 3 4 Dataset name in traverse_explanations_LIME3: pendigits
+1 2 3 4   split 9 done (3235.7s)
+ROW pendigits LR | C4 0.1435 (p=0.002) | C5 0.1496 (p=0.002)
+ROW pendigits NB | C4 0.12 (p=0.002) | C5 0.1115 (p=0.002)
+ROW pendigits KNN | C4 0.0214 (p=0.049) | C5 0.0183 (p=0.049)
+ROW pendigits DT | C4 0.0508 (p=0.131) | C5 0.0356 (p=0.193)

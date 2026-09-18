@@ -1,0 +1,137 @@
+
+### iris+DT (20 sets) ###
+<IPython.core.display.HTML object>
+Traceback (most recent call last):
+  File "/Users/sesame/FaithfulDefense/ssm/_shap4b_continuous.py", line 72, in <module>
+    allres.append(run_combo(wd, wm))
+  File "/Users/sesame/FaithfulDefense/ssm/_shap4b_continuous.py", line 52, in run_combo
+    smega = mega_sample_generation(Xts.to_numpy(), yts, nc, [5], hms)
+  File "/Users/sesame/FaithfulDefense/ssm/attack_utils.py", line 2432, in mega_sample_generation
+    sample_set_sui = sample_set_generation(test_cpy, n, sizes[j])
+  File "/Users/sesame/FaithfulDefense/ssm/attack_utils.py", line 110, in sample_set_generation
+    indices = random.sample(tmp[0].tolist(), lister[i])
+  File "/Users/sesame/AUTOLYCUS/.conda/lib/python3.10/random.py", line 482, in sample
+    raise ValueError("Sample larger than population or is negative")
+ValueError: Sample larger than population or is negative
+
+### iris+RF (20 sets) ###
+<IPython.core.display.HTML object>
+Traceback (most recent call last):
+  File "/Users/sesame/FaithfulDefense/ssm/_shap4b_continuous.py", line 72, in <module>
+    allres.append(run_combo(wd, wm))
+  File "/Users/sesame/FaithfulDefense/ssm/_shap4b_continuous.py", line 52, in run_combo
+    smega = mega_sample_generation(Xts.to_numpy(), yts, nc, [5], hms)
+  File "/Users/sesame/FaithfulDefense/ssm/attack_utils.py", line 2432, in mega_sample_generation
+    sample_set_sui = sample_set_generation(test_cpy, n, sizes[j])
+  File "/Users/sesame/FaithfulDefense/ssm/attack_utils.py", line 110, in sample_set_generation
+    indices = random.sample(tmp[0].tolist(), lister[i])
+  File "/Users/sesame/AUTOLYCUS/.conda/lib/python3.10/random.py", line 482, in sample
+    raise ValueError("Sample larger than population or is negative")
+ValueError: Sample larger than population or is negative
+
+### crop+DT (20 sets) ###
+<IPython.core.display.HTML object>
+  [crop+DT] set 0: baseline=0.887 shap3=0.916 shap4=0.919 shap4b=0.932
+  [crop+DT] set 1: baseline=0.906 shap3=0.930 shap4=0.926 shap4b=0.921
+  [crop+DT] set 2: baseline=0.953 shap3=0.923 shap4=0.934 shap4b=0.955
+  [crop+DT] set 3: baseline=0.851 shap3=0.892 shap4=0.865 shap4b=0.946
+  [crop+DT] set 4: baseline=0.871 shap3=0.858 shap4=0.877 shap4b=0.872
+  [crop+DT] set 5: baseline=0.912 shap3=0.901 shap4=0.935 shap4b=0.927
+  [crop+DT] set 6: baseline=0.946 shap3=0.950 shap4=0.933 shap4b=0.953
+  [crop+DT] set 7: baseline=0.922 shap3=0.909 shap4=0.879 shap4b=0.901
+  [crop+DT] set 8: baseline=0.940 shap3=0.898 shap4=0.897 shap4b=0.884
+  [crop+DT] set 9: baseline=0.910 shap3=0.925 shap4=0.876 shap4b=0.900
+  [crop+DT] set 10: baseline=0.941 shap3=0.918 shap4=0.910 shap4b=0.927
+  [crop+DT] set 11: baseline=0.888 shap3=0.909 shap4=0.892 shap4b=0.900
+  [crop+DT] set 12: baseline=0.930 shap3=0.946 shap4=0.922 shap4b=0.912
+  [crop+DT] set 13: baseline=0.861 shap3=0.891 shap4=0.914 shap4b=0.896
+  [crop+DT] set 14: baseline=0.905 shap3=0.946 shap4=0.948 shap4b=0.944
+  [crop+DT] set 15: baseline=0.890 shap3=0.916 shap4=0.853 shap4b=0.917
+  [crop+DT] set 16: baseline=0.945 shap3=0.886 shap4=0.905 shap4b=0.976
+  [crop+DT] set 17: baseline=0.941 shap3=0.935 shap4=0.878 shap4b=0.929
+  [crop+DT] set 18: baseline=0.903 shap3=0.911 shap4=0.920 shap4b=0.945
+  [crop+DT] set 19: baseline=0.875 shap3=0.870 shap4=0.926 shap4b=0.864
+  -> base 0.9088 s3 0.9115 s4 0.9056 s4b 0.92
+
+### crop+RF (20 sets) ###
+<IPython.core.display.HTML object>
+  [crop+RF] set 0: baseline=0.961 shap3=0.982 shap4=0.965 shap4b=0.977
+  [crop+RF] set 1: baseline=0.980 shap3=0.979 shap4=0.964 shap4b=0.985
+  [crop+RF] set 2: baseline=0.985 shap3=0.975 shap4=0.987 shap4b=0.971
+  [crop+RF] set 3: baseline=0.979 shap3=0.969 shap4=0.947 shap4b=0.982
+  [crop+RF] set 4: baseline=0.968 shap3=0.987 shap4=0.984 shap4b=0.971
+  [crop+RF] set 5: baseline=0.965 shap3=0.984 shap4=0.971 shap4b=0.953
+  [crop+RF] set 6: baseline=0.975 shap3=0.980 shap4=0.967 shap4b=0.983
+  [crop+RF] set 7: baseline=0.978 shap3=0.945 shap4=0.969 shap4b=0.930
+  [crop+RF] set 8: baseline=0.966 shap3=0.981 shap4=0.973 shap4b=0.969
+  [crop+RF] set 9: baseline=0.964 shap3=0.977 shap4=0.949 shap4b=0.978
+  [crop+RF] set 10: baseline=0.944 shap3=0.973 shap4=0.959 shap4b=0.970
+  [crop+RF] set 11: baseline=0.975 shap3=0.954 shap4=0.952 shap4b=0.967
+  [crop+RF] set 12: baseline=0.991 shap3=0.985 shap4=0.989 shap4b=0.969
+  [crop+RF] set 13: baseline=0.982 shap3=0.984 shap4=0.984 shap4b=0.967
+  [crop+RF] set 14: baseline=0.965 shap3=0.985 shap4=0.973 shap4b=0.962
+  [crop+RF] set 15: baseline=0.960 shap3=0.965 shap4=0.955 shap4b=0.934
+  [crop+RF] set 16: baseline=0.972 shap3=0.975 shap4=0.973 shap4b=0.967
+  [crop+RF] set 17: baseline=0.974 shap3=0.972 shap4=0.984 shap4b=0.973
+  [crop+RF] set 18: baseline=0.970 shap3=0.982 shap4=0.967 shap4b=0.978
+  [crop+RF] set 19: baseline=0.969 shap3=0.953 shap4=0.958 shap4b=0.950
+  -> base 0.9712 s3 0.9744 s4 0.9685 s4b 0.9668
+
+### breast+DT (20 sets) ###
+<IPython.core.display.HTML object>
+  [breast+DT] set 0: baseline=0.928 shap3=0.988 shap4=0.920 shap4b=0.870
+  [breast+DT] set 1: baseline=0.994 shap3=0.814 shap4=0.914 shap4b=0.956
+  [breast+DT] set 2: baseline=0.916 shap3=0.887 shap4=0.897 shap4b=0.960
+  [breast+DT] set 3: baseline=0.988 shap3=0.976 shap4=0.824 shap4b=0.965
+  [breast+DT] set 4: baseline=0.973 shap3=0.863 shap4=0.853 shap4b=0.959
+  [breast+DT] set 5: baseline=0.942 shap3=0.971 shap4=0.906 shap4b=0.911
+  [breast+DT] set 6: baseline=0.958 shap3=0.941 shap4=0.942 shap4b=0.941
+  [breast+DT] set 7: baseline=0.915 shap3=0.966 shap4=0.940 shap4b=0.906
+  [breast+DT] set 8: baseline=0.962 shap3=0.938 shap4=0.908 shap4b=0.879
+  [breast+DT] set 9: baseline=0.929 shap3=1.000 shap4=0.968 shap4b=0.784
+  [breast+DT] set 10: baseline=0.988 shap3=0.963 shap4=0.878 shap4b=0.953
+  [breast+DT] set 11: baseline=0.965 shap3=0.988 shap4=0.976 shap4b=0.952
+  [breast+DT] set 12: baseline=0.965 shap3=0.848 shap4=0.870 shap4b=0.973
+  [breast+DT] set 13: baseline=0.800 shap3=0.913 shap4=0.746 shap4b=0.957
+  [breast+DT] set 14: baseline=0.918 shap3=0.841 shap4=0.965 shap4b=0.976
+  [breast+DT] set 15: baseline=0.941 shap3=0.957 shap4=0.953 shap4b=0.917
+  [breast+DT] set 16: baseline=0.941 shap3=0.938 shap4=0.835 shap4b=0.919
+  [breast+DT] set 17: baseline=0.965 shap3=0.944 shap4=0.960 shap4b=0.941
+  [breast+DT] set 18: baseline=0.965 shap3=0.953 shap4=0.928 shap4b=0.950
+  [breast+DT] set 19: baseline=0.859 shap3=0.939 shap4=0.894 shap4b=0.928
+  -> base 0.9406 s3 0.9314 s4 0.9038 s4b 0.93
+
+### breast+RF (20 sets) ###
+<IPython.core.display.HTML object>
+  [breast+RF] set 0: baseline=0.931 shap3=0.896 shap4=0.941 shap4b=0.924
+  [breast+RF] set 1: baseline=0.951 shap3=0.960 shap4=0.952 shap4b=0.959
+  [breast+RF] set 2: baseline=0.941 shap3=0.949 shap4=0.966 shap4b=0.959
+  [breast+RF] set 3: baseline=0.944 shap3=0.939 shap4=0.955 shap4b=0.921
+  [breast+RF] set 4: baseline=0.906 shap3=0.925 shap4=0.933 shap4b=0.913
+  [breast+RF] set 5: baseline=0.940 shap3=0.935 shap4=0.946 shap4b=0.958
+  [breast+RF] set 6: baseline=0.936 shap3=0.933 shap4=0.936 shap4b=0.935
+  [breast+RF] set 7: baseline=0.954 shap3=0.909 shap4=0.941 shap4b=0.945
+  [breast+RF] set 8: baseline=0.946 shap3=0.946 shap4=0.944 shap4b=0.952
+  [breast+RF] set 9: baseline=0.908 shap3=0.899 shap4=0.934 shap4b=0.942
+  [breast+RF] set 10: baseline=0.926 shap3=0.936 shap4=0.954 shap4b=0.948
+  [breast+RF] set 11: baseline=0.922 shap3=0.909 shap4=0.941 shap4b=0.966
+  [breast+RF] set 12: baseline=0.955 shap3=0.969 shap4=0.946 shap4b=0.928
+  [breast+RF] set 13: baseline=0.927 shap3=0.953 shap4=0.949 shap4b=0.955
+  [breast+RF] set 14: baseline=0.975 shap3=0.947 shap4=0.955 shap4b=0.961
+  [breast+RF] set 15: baseline=0.920 shap3=0.947 shap4=0.938 shap4b=0.927
+  [breast+RF] set 16: baseline=0.968 shap3=0.949 shap4=0.962 shap4b=0.955
+  [breast+RF] set 17: baseline=0.971 shap3=0.968 shap4=0.976 shap4b=0.972
+  [breast+RF] set 18: baseline=0.908 shap3=0.941 shap4=0.929 shap4b=0.928
+  [breast+RF] set 19: baseline=0.985 shap3=0.942 shap4=0.955 shap4b=0.962
+  -> base 0.9407 s3 0.9378 s4 0.9478 s4b 0.9455
+
+=== SHAP4b CONTINUOUS-DATASET CONFIRMATION (20 sets, mean±std, Q=500, k=3) ===
+data     mdl       baseline         shap3         shap4        shap4b  s4b-base   s4b-s3
+----------------------------------------------------------------------------------------
+iris     DT    ERROR
+iris     RF    ERROR
+crop     DT    0.9088±0.030  0.9115±0.024  0.9056±0.026  0.9200±0.029   +0.0112  +0.0085
+crop     RF    0.9712±0.010  0.9744±0.011  0.9685±0.012  0.9668±0.015   -0.0044  -0.0076
+breast   DT    0.9406±0.045  0.9314±0.052  0.9038±0.056  0.9300±0.044   -0.0106  -0.0014
+breast   RF    0.9407±0.022  0.9378±0.020  0.9478±0.012  0.9455±0.017   +0.0048  +0.0077
+done

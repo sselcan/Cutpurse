@@ -395,7 +395,10 @@ def run_attack(wd, wm, et, hms, sss, ql, so, num_exp, bs):  # make sure the type
     ## Unpack args
     args1, args2 = load_dataset(which_dataset)
     X_train, X_test, y_train, y_test, X_test_t, X_test_s, y_test_t, y_test_s = args1
-    classes, features, n_classes, n_features, isCategorical, epsilon_set, canNegative, classPossibilities, dataset_name = args2
+    if len(args2) == 10:
+        classes, features, n_classes, n_features, isCategorical, epsilon_set, canNegative, classPossibilities, dataset_name, feature_ranges = args2
+    else:
+        classes, features, n_classes, n_features, isCategorical, epsilon_set, canNegative, classPossibilities, dataset_name = args2
     explanation_types = ["vanilla", "topk", "random", "zero"]
 
 

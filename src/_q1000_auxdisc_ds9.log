@@ -1,0 +1,15 @@
+  split 0 done (762.8s)
+  split 1 done (1526.3s)
+  split 2 done (2297.7s)
+  split 3 done (3062.2s)
+  split 4 done (3819.8s)
+  split 5 done (6624.9s)
+  split 6 done (7588.1s)
+  split 7 done (8539.4s)
+  split 8 done (9494.1s)
+  split 9 done (10391.7s)
+ROW pendigits LR thr_tgt 0.186 thr_aux 0.2007 leak -0.0147
+ROW pendigits NB thr_tgt 0.0791 thr_aux 0.0775 leak 0.0016
+ROW pendigits KNN thr_tgt 0.0037 thr_aux 0.0039 leak -0.0002
+ROW pendigits DT thr_tgt 0.1005 thr_aux 0.1349 leak -0.0344
+ROW pendigits RF thr_tgt 0.0071 thr_aux -0.0088 leak 0.0159

@@ -1,0 +1,31 @@
+<IPython.core.display.HTML object>
+[adult+DT] base=0.8254 s4b=0.8336 rand=0.8137 densonly=0.7698 densonlyRand=0.8070 | shapGain(3.1)=+0.0199 traversalGain(3.2)=+0.0638
+<IPython.core.display.HTML object>
+[crop+DT] base=0.9090 s4b=0.9255 rand=0.9239 densonly=0.9016 densonlyRand=0.9047 | shapGain(3.1)=+0.0016 traversalGain(3.2)=+0.0239
+<IPython.core.display.HTML object>
+[mushroom+DT] base=0.9323 s4b=0.9433 rand=0.8725 densonly=0.8892 densonlyRand=0.8803 | shapGain(3.1)=+0.0708 traversalGain(3.2)=+0.0541
+<IPython.core.display.HTML object>
+[breast+DT] base=0.9094 s4b=0.9082 rand=0.9047 densonly=0.9259 densonlyRand=0.9271 | shapGain(3.1)=+0.0035 traversalGain(3.2)=-0.0177
+<IPython.core.display.HTML object>
+[adult+RF] base=0.9049 s4b=0.9103 rand=0.9058 densonly=0.8985 densonlyRand=0.8901 | shapGain(3.1)=+0.0045 traversalGain(3.2)=+0.0118
+<IPython.core.display.HTML object>
+[crop+RF] base=0.9765 s4b=0.9675 rand=0.9710 densonly=0.9643 densonlyRand=0.9675 | shapGain(3.1)=-0.0035 traversalGain(3.2)=+0.0032
+<IPython.core.display.HTML object>
+[mushroom+RF] base=0.9250 s4b=0.9064 rand=0.8860 densonly=0.9195 densonlyRand=0.8972 | shapGain(3.1)=+0.0204 traversalGain(3.2)=-0.0131
+<IPython.core.display.HTML object>
+[breast+RF] base=0.9212 s4b=0.9318 rand=0.9318 densonly=0.9329 densonlyRand=0.9376 | shapGain(3.1)=+0.0000 traversalGain(3.2)=-0.0011
+
+=== SHAP-ABLATION (3.1) + DENSIFY-ONLY (3.2)  [Q=500, 10 sets, matched surrogate] ===
+data     mdl      base      s4b     rand    densO  densORand  shapGain  travGain
+--------------------------------------------------------------------------------
+adult    DT     0.8254   0.8336   0.8137   0.7698     0.8070   +0.0199   +0.0638
+crop     DT     0.9090   0.9255   0.9239   0.9016     0.9047   +0.0016   +0.0239
+mushroom DT     0.9323   0.9433   0.8725   0.8892     0.8803   +0.0708   +0.0541
+breast   DT     0.9094   0.9082   0.9047   0.9259     0.9271   +0.0035   -0.0177
+adult    RF     0.9049   0.9103   0.9058   0.8985     0.8901   +0.0045   +0.0118
+crop     RF     0.9765   0.9675   0.9710   0.9643     0.9675   -0.0035   +0.0032
+mushroom RF     0.9250   0.9064   0.8860   0.9195     0.8972   +0.0204   -0.0131
+breast   RF     0.9212   0.9318   0.9318   0.9329     0.9376   +0.0000   -0.0011
+
+3.1: shapGain = s4b_shap - s4b_rand (>0 => SHAP helps).  3.2: travGain = s4b_shap - densonly_shap (~0 => traversal not needed).
+done

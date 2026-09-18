@@ -1,0 +1,67 @@
+[
+  {
+    "dataset": "nursery",
+    "model": "lr",
+    "Q": 1000,
+    "base": 0.9864,
+    "nodense": 0.9888,
+    "dense": 0.9888,
+    "d_dense_nod": 0.0,
+    "p_dense_nod": 1.0,
+    "d_dense_base": 0.0024,
+    "p_dense_base": 0.1055,
+    "secs": 2456.8
+  },
+  {
+    "dataset": "nursery",
+    "model": "nb",
+    "Q": 1000,
+    "base": 0.8391,
+    "nodense": 0.8924,
+    "dense": 0.8924,
+    "d_dense_nod": 0.0,
+    "p_dense_nod": 1.0,
+    "d_dense_base": 0.0532,
+    "p_dense_base": 0.0039,
+    "secs": 2147.4
+  },
+  {
+    "dataset": "nursery",
+    "model": "knn",
+    "Q": 1000,
+    "base": 0.8026,
+    "nodense": 0.7928,
+    "dense": 0.7928,
+    "d_dense_nod": 0.0,
+    "p_dense_nod": 1.0,
+    "d_dense_base": -0.0098,
+    "p_dense_base": 0.2754,
+    "secs": 6898.7
+  },
+  {
+    "dataset": "nursery",
+    "model": "dt",
+    "Q": 1000,
+    "base": 0.8985,
+    "nodense": 0.8986,
+    "dense": 0.8986,
+    "d_dense_nod": 0.0,
+    "p_dense_nod": 1.0,
+    "d_dense_base": 0.0001,
+    "p_dense_base": 1.0,
+    "secs": 2171.0
+  },
+  {
+    "dataset": "nursery",
+    "model": "rdf",
+    "Q": 1000,
+    "base": 0.902,
+    "nodense": 0.8965,
+    "dense": 0.8965,
+    "d_dense_nod": 0.0,
+    "p_dense_nod": 1.0,
+    "d_dense_base": -0.0055,
+    "p_dense_base": 0.2324,
+    "secs": 5362.0
+  }
+]

@@ -1,0 +1,54 @@
+Dataset name in traverse_explanations_LIME3: crop
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: crop
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: crop
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: crop
+1 2 3 4 5 6 7 8 9   split 0 done (168.7s)
+Dataset name in traverse_explanations_LIME3: crop
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: crop
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: crop
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: crop
+1 2 3 4 5 6 7 8 9   split 1 done (344.6s)
+Dataset name in traverse_explanations_LIME3: crop
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: crop
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: crop
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: crop
+1 2 3 4 5 6 7 8 9   split 2 done (777.9s)
+Dataset name in traverse_explanations_LIME3: crop
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: crop
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: crop
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: crop
+1 2 3 4 5 6 7 8 9   split 3 done (3286.2s)
+Dataset name in traverse_explanations_LIME3: crop
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: crop
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: crop
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: crop
+1 2 3 4 5 6 7 8 9   split 4 done (3424.3s)
+Dataset name in traverse_explanations_LIME3: crop
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: crop
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: crop
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: crop
+1 2 3 4 5 6 7 8 9   split 5 done (3562.4s)
+Dataset name in traverse_explanations_LIME3: crop
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: crop
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: crop
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: crop
+1 2 3 4 5 6 7 8 9   split 6 done (3694.9s)
+Dataset name in traverse_explanations_LIME3: crop
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: crop
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: crop
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: crop
+1 2 3 4 5 6 7 8 9   split 7 done (3829.5s)
+Dataset name in traverse_explanations_LIME3: crop
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: crop
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: crop
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: crop
+1 2 3 4 5 6 7 8 9   split 8 done (3964.8s)
+Dataset name in traverse_explanations_LIME3: crop
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: crop
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: crop
+1 2 3 4 5 6 7 8 9 Dataset name in traverse_explanations_LIME3: crop
+1 2 3 4 5 6 7 8 9   split 9 done (4098.9s)
+ROW crop LR | C4 0.1114 (p=0.004) | C5 0.0929 (p=0.002)
+ROW crop NB | C4 -0.0545 (p=0.027) | C5 0.0278 (p=0.131)
+ROW crop KNN | C4 -0.0353 (p=0.131) | C5 0.0173 (p=0.193)
+ROW crop DT | C4 0.1229 (p=0.002) | C5 0.1201 (p=0.002)

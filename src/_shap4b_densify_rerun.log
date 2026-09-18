@@ -1,0 +1,155 @@
+
+### nursery+DT (20 sets) ###
+<IPython.core.display.HTML object>
+  [nursery+DT] set 0: baseline=0.883 shap3=0.893 shap4=0.889 shap4b=0.879
+  [nursery+DT] set 1: baseline=0.898 shap3=0.901 shap4=0.864 shap4b=0.864
+  [nursery+DT] set 2: baseline=0.899 shap3=0.894 shap4=0.862 shap4b=0.881
+  [nursery+DT] set 3: baseline=0.896 shap3=0.891 shap4=0.860 shap4b=0.865
+  [nursery+DT] set 4: baseline=0.916 shap3=0.885 shap4=0.869 shap4b=0.866
+  [nursery+DT] set 5: baseline=0.895 shap3=0.882 shap4=0.862 shap4b=0.897
+  [nursery+DT] set 6: baseline=0.902 shap3=0.871 shap4=0.876 shap4b=0.853
+  [nursery+DT] set 7: baseline=0.895 shap3=0.870 shap4=0.846 shap4b=0.860
+  [nursery+DT] set 8: baseline=0.906 shap3=0.881 shap4=0.869 shap4b=0.874
+  [nursery+DT] set 9: baseline=0.885 shap3=0.871 shap4=0.871 shap4b=0.881
+  [nursery+DT] set 10: baseline=0.902 shap3=0.870 shap4=0.847 shap4b=0.854
+  [nursery+DT] set 11: baseline=0.905 shap3=0.857 shap4=0.888 shap4b=0.907
+  [nursery+DT] set 12: baseline=0.884 shap3=0.878 shap4=0.877 shap4b=0.892
+  [nursery+DT] set 13: baseline=0.887 shap3=0.859 shap4=0.889 shap4b=0.880
+  [nursery+DT] set 14: baseline=0.901 shap3=0.870 shap4=0.879 shap4b=0.888
+  [nursery+DT] set 15: baseline=0.892 shap3=0.891 shap4=0.881 shap4b=0.871
+  [nursery+DT] set 16: baseline=0.895 shap3=0.876 shap4=0.879 shap4b=0.905
+  [nursery+DT] set 17: baseline=0.886 shap3=0.906 shap4=0.881 shap4b=0.886
+  [nursery+DT] set 18: baseline=0.906 shap3=0.868 shap4=0.871 shap4b=0.857
+  [nursery+DT] set 19: baseline=0.891 shap3=0.897 shap4=0.834 shap4b=0.866
+  -> base 0.8963 s3 0.8806 s4 0.8696 s4b 0.8762
+
+### nursery+RF (20 sets) ###
+<IPython.core.display.HTML object>
+  [nursery+RF] set 0: baseline=0.907 shap3=0.894 shap4=0.887 shap4b=0.890
+  [nursery+RF] set 1: baseline=0.907 shap3=0.896 shap4=0.903 shap4b=0.887
+  [nursery+RF] set 2: baseline=0.901 shap3=0.896 shap4=0.914 shap4b=0.898
+  [nursery+RF] set 3: baseline=0.892 shap3=0.902 shap4=0.903 shap4b=0.905
+  [nursery+RF] set 4: baseline=0.913 shap3=0.890 shap4=0.886 shap4b=0.885
+  [nursery+RF] set 5: baseline=0.907 shap3=0.891 shap4=0.906 shap4b=0.906
+  [nursery+RF] set 6: baseline=0.900 shap3=0.891 shap4=0.900 shap4b=0.897
+  [nursery+RF] set 7: baseline=0.901 shap3=0.904 shap4=0.901 shap4b=0.895
+  [nursery+RF] set 8: baseline=0.923 shap3=0.899 shap4=0.890 shap4b=0.900
+  [nursery+RF] set 9: baseline=0.908 shap3=0.895 shap4=0.897 shap4b=0.885
+  [nursery+RF] set 10: baseline=0.905 shap3=0.895 shap4=0.900 shap4b=0.861
+  [nursery+RF] set 11: baseline=0.910 shap3=0.906 shap4=0.893 shap4b=0.899
+  [nursery+RF] set 12: baseline=0.903 shap3=0.900 shap4=0.896 shap4b=0.887
+  [nursery+RF] set 13: baseline=0.898 shap3=0.902 shap4=0.895 shap4b=0.898
+  [nursery+RF] set 14: baseline=0.908 shap3=0.892 shap4=0.890 shap4b=0.883
+  [nursery+RF] set 15: baseline=0.899 shap3=0.897 shap4=0.897 shap4b=0.879
+  [nursery+RF] set 16: baseline=0.905 shap3=0.890 shap4=0.901 shap4b=0.882
+  [nursery+RF] set 17: baseline=0.898 shap3=0.902 shap4=0.909 shap4b=0.897
+  [nursery+RF] set 18: baseline=0.912 shap3=0.895 shap4=0.903 shap4b=0.895
+  [nursery+RF] set 19: baseline=0.894 shap3=0.895 shap4=0.903 shap4b=0.903
+  -> base 0.9047 s3 0.8965 s4 0.8987 s4b 0.8916
+
+### mushroom+DT (20 sets) ###
+<IPython.core.display.HTML object>
+  [mushroom+DT] set 0: baseline=0.886 shap3=0.936 shap4=0.931 shap4b=0.945
+  [mushroom+DT] set 1: baseline=0.892 shap3=0.915 shap4=0.913 shap4b=0.908
+  [mushroom+DT] set 2: baseline=0.964 shap3=0.986 shap4=0.966 shap4b=0.995
+  [mushroom+DT] set 3: baseline=0.960 shap3=0.907 shap4=0.971 shap4b=0.969
+  [mushroom+DT] set 4: baseline=0.949 shap3=0.882 shap4=0.910 shap4b=0.926
+  [mushroom+DT] set 5: baseline=0.702 shap3=0.927 shap4=0.785 shap4b=0.770
+  [mushroom+DT] set 6: baseline=0.943 shap3=0.933 shap4=0.968 shap4b=0.968
+  [mushroom+DT] set 7: baseline=0.797 shap3=0.812 shap4=0.961 shap4b=0.926
+  [mushroom+DT] set 8: baseline=0.975 shap3=0.940 shap4=0.887 shap4b=0.983
+  [mushroom+DT] set 9: baseline=0.936 shap3=0.968 shap4=0.873 shap4b=0.970
+  [mushroom+DT] set 10: baseline=0.948 shap3=0.955 shap4=0.886 shap4b=0.858
+  [mushroom+DT] set 11: baseline=0.885 shap3=0.881 shap4=0.893 shap4b=0.963
+  [mushroom+DT] set 12: baseline=0.961 shap3=0.926 shap4=0.976 shap4b=0.972
+  [mushroom+DT] set 13: baseline=0.943 shap3=0.950 shap4=0.839 shap4b=0.895
+  [mushroom+DT] set 14: baseline=0.961 shap3=0.927 shap4=0.926 shap4b=0.979
+  [mushroom+DT] set 15: baseline=0.901 shap3=0.894 shap4=0.880 shap4b=0.903
+  [mushroom+DT] set 16: baseline=0.892 shap3=0.957 shap4=0.865 shap4b=0.847
+  [mushroom+DT] set 17: baseline=0.923 shap3=0.815 shap4=0.882 shap4b=0.872
+  [mushroom+DT] set 18: baseline=0.897 shap3=0.902 shap4=0.901 shap4b=0.897
+  [mushroom+DT] set 19: baseline=0.936 shap3=0.917 shap4=0.986 shap4b=0.930
+  -> base 0.9124 s3 0.9165 s4 0.9099 s4b 0.9237
+
+### mushroom+RF (20 sets) ###
+<IPython.core.display.HTML object>
+  [mushroom+RF] set 0: baseline=0.941 shap3=0.927 shap4=0.921 shap4b=0.954
+  [mushroom+RF] set 1: baseline=0.956 shap3=0.955 shap4=0.956 shap4b=0.937
+  [mushroom+RF] set 2: baseline=0.901 shap3=0.900 shap4=0.899 shap4b=0.939
+  [mushroom+RF] set 3: baseline=0.961 shap3=0.781 shap4=0.920 shap4b=0.920
+  [mushroom+RF] set 4: baseline=0.934 shap3=0.954 shap4=0.921 shap4b=0.913
+  [mushroom+RF] set 5: baseline=0.908 shap3=0.950 shap4=0.899 shap4b=0.921
+  [mushroom+RF] set 6: baseline=0.925 shap3=0.953 shap4=0.953 shap4b=0.935
+  [mushroom+RF] set 7: baseline=0.895 shap3=0.919 shap4=0.904 shap4b=0.905
+  [mushroom+RF] set 8: baseline=0.889 shap3=0.838 shap4=0.906 shap4b=0.933
+  [mushroom+RF] set 9: baseline=0.927 shap3=0.939 shap4=0.921 shap4b=0.957
+  [mushroom+RF] set 10: baseline=0.933 shap3=0.901 shap4=0.930 shap4b=0.932
+  [mushroom+RF] set 11: baseline=0.953 shap3=0.925 shap4=0.905 shap4b=0.930
+  [mushroom+RF] set 12: baseline=0.954 shap3=0.952 shap4=0.953 shap4b=0.956
+  [mushroom+RF] set 13: baseline=0.922 shap3=0.917 shap4=0.931 shap4b=0.934
+  [mushroom+RF] set 14: baseline=0.928 shap3=0.977 shap4=0.948 shap4b=0.927
+  [mushroom+RF] set 15: baseline=0.924 shap3=0.944 shap4=0.948 shap4b=0.931
+  [mushroom+RF] set 16: baseline=0.937 shap3=0.955 shap4=0.934 shap4b=0.952
+  [mushroom+RF] set 17: baseline=0.931 shap3=0.909 shap4=0.943 shap4b=0.934
+  [mushroom+RF] set 18: baseline=0.930 shap3=0.917 shap4=0.922 shap4b=0.921
+  [mushroom+RF] set 19: baseline=0.917 shap3=0.883 shap4=0.918 shap4b=0.898
+  -> base 0.9283 s3 0.9198 s4 0.9265 s4b 0.9316
+
+### adult+DT (20 sets) ###
+<IPython.core.display.HTML object>
+  [adult+DT] set 0: baseline=0.818 shap3=0.806 shap4=0.809 shap4b=0.808
+  [adult+DT] set 1: baseline=0.828 shap3=0.819 shap4=0.675 shap4b=0.819
+  [adult+DT] set 2: baseline=0.742 shap3=0.807 shap4=0.848 shap4b=0.843
+  [adult+DT] set 3: baseline=0.832 shap3=0.843 shap4=0.837 shap4b=0.824
+  [adult+DT] set 4: baseline=0.800 shap3=0.808 shap4=0.839 shap4b=0.794
+  [adult+DT] set 5: baseline=0.777 shap3=0.828 shap4=0.790 shap4b=0.819
+  [adult+DT] set 6: baseline=0.825 shap3=0.763 shap4=0.831 shap4b=0.802
+  [adult+DT] set 7: baseline=0.803 shap3=0.685 shap4=0.842 shap4b=0.815
+  [adult+DT] set 8: baseline=0.801 shap3=0.871 shap4=0.767 shap4b=0.838
+  [adult+DT] set 9: baseline=0.825 shap3=0.798 shap4=0.761 shap4b=0.757
+  [adult+DT] set 10: baseline=0.819 shap3=0.833 shap4=0.830 shap4b=0.775
+  [adult+DT] set 11: baseline=0.817 shap3=0.788 shap4=0.790 shap4b=0.818
+  [adult+DT] set 12: baseline=0.776 shap3=0.802 shap4=0.740 shap4b=0.741
+  [adult+DT] set 13: baseline=0.861 shap3=0.832 shap4=0.848 shap4b=0.714
+  [adult+DT] set 14: baseline=0.768 shap3=0.846 shap4=0.823 shap4b=0.795
+  [adult+DT] set 15: baseline=0.775 shap3=0.816 shap4=0.810 shap4b=0.837
+  [adult+DT] set 16: baseline=0.849 shap3=0.838 shap4=0.842 shap4b=0.856
+  [adult+DT] set 17: baseline=0.754 shap3=0.836 shap4=0.825 shap4b=0.808
+  [adult+DT] set 18: baseline=0.833 shap3=0.743 shap4=0.810 shap4b=0.822
+  [adult+DT] set 19: baseline=0.858 shap3=0.814 shap4=0.823 shap4b=0.828
+  -> base 0.8081 s3 0.8088 s4 0.8071 s4b 0.8056
+
+### adult+RF (20 sets) ###
+<IPython.core.display.HTML object>
+  [adult+RF] set 0: baseline=0.922 shap3=0.883 shap4=0.896 shap4b=0.907
+  [adult+RF] set 1: baseline=0.873 shap3=0.902 shap4=0.897 shap4b=0.903
+  [adult+RF] set 2: baseline=0.911 shap3=0.897 shap4=0.904 shap4b=0.927
+  [adult+RF] set 3: baseline=0.916 shap3=0.904 shap4=0.918 shap4b=0.926
+  [adult+RF] set 4: baseline=0.912 shap3=0.885 shap4=0.931 shap4b=0.929
+  [adult+RF] set 5: baseline=0.918 shap3=0.907 shap4=0.931 shap4b=0.920
+  [adult+RF] set 6: baseline=0.885 shap3=0.855 shap4=0.885 shap4b=0.934
+  [adult+RF] set 7: baseline=0.879 shap3=0.936 shap4=0.919 shap4b=0.937
+  [adult+RF] set 8: baseline=0.915 shap3=0.883 shap4=0.906 shap4b=0.921
+  [adult+RF] set 9: baseline=0.908 shap3=0.900 shap4=0.923 shap4b=0.900
+  [adult+RF] set 10: baseline=0.895 shap3=0.892 shap4=0.924 shap4b=0.916
+  [adult+RF] set 11: baseline=0.925 shap3=0.914 shap4=0.926 shap4b=0.926
+  [adult+RF] set 12: baseline=0.857 shap3=0.834 shap4=0.883 shap4b=0.891
+  [adult+RF] set 13: baseline=0.890 shap3=0.874 shap4=0.890 shap4b=0.919
+  [adult+RF] set 14: baseline=0.862 shap3=0.882 shap4=0.911 shap4b=0.884
+  [adult+RF] set 15: baseline=0.884 shap3=0.908 shap4=0.922 shap4b=0.919
+  [adult+RF] set 16: baseline=0.921 shap3=0.902 shap4=0.888 shap4b=0.926
+  [adult+RF] set 17: baseline=0.881 shap3=0.929 shap4=0.914 shap4b=0.920
+  [adult+RF] set 18: baseline=0.887 shap3=0.876 shap4=0.885 shap4b=0.918
+  [adult+RF] set 19: baseline=0.881 shap3=0.859 shap4=0.915 shap4b=0.922
+  -> base 0.8962 s3 0.8911 s4 0.9083 s4b 0.9172
+
+=== SHAP4b BOUNDARY-DENSIFICATION (20 sets, mean±std, Q=500, k=3, matched surrogate) ===
+data     mdl       baseline         shap3         shap4        shap4b  s4b-base   s4b-s3
+----------------------------------------------------------------------------------------
+nursery  DT    0.8963±0.009  0.8806±0.013  0.8696±0.015  0.8762±0.016   -0.0201  -0.0044
+nursery  RF    0.9047±0.007  0.8965±0.005  0.8987±0.007  0.8916±0.011   -0.0131  -0.0049
+mushroom DT    0.9124±0.063  0.9165±0.043  0.9099±0.051  0.9237±0.055   +0.0113  +0.0072
+mushroom RF    0.9283±0.019  0.9198±0.044  0.9265±0.018  0.9316±0.016   +0.0033  +0.0118
+adult    DT    0.8081±0.033  0.8088±0.040  0.8071±0.042  0.8056±0.035   -0.0025  -0.0032
+adult    RF    0.8962±0.020  0.8911±0.024  0.9083±0.016  0.9172±0.013   +0.0210  +0.0261
+done

@@ -1,0 +1,82 @@
+[
+  {
+    "dataset": "adult",
+    "Q": 250,
+    "baseline": 0.8341,
+    "plain": 0.808,
+    "snap_all": 0.788,
+    "snap_close": 0.8036,
+    "n_snapped": 7.6,
+    "n_splits": 37.0
+  },
+  {
+    "dataset": "adult",
+    "Q": 500,
+    "baseline": 0.8305,
+    "plain": 0.8214,
+    "snap_all": 0.7084,
+    "snap_close": 0.7575,
+    "n_snapped": 25.7,
+    "n_splits": 77.2
+  },
+  {
+    "dataset": "adult",
+    "Q": 1000,
+    "baseline": 0.8297,
+    "plain": 0.8218,
+    "snap_all": 0.7183,
+    "snap_close": 0.7788,
+    "n_snapped": 46.9,
+    "n_splits": 140.4
+  },
+  {
+    "dataset": "breast",
+    "Q": 100,
+    "baseline": 0.9647,
+    "plain": 0.9588,
+    "snap_all": 0.9624,
+    "snap_close": 0.9612,
+    "n_snapped": 2.7,
+    "n_splits": 4.3
+  },
+  {
+    "dataset": "breast",
+    "Q": 250,
+    "baseline": 0.9482,
+    "plain": 0.9753,
+    "snap_all": 0.9671,
+    "snap_close": 0.9753,
+    "n_snapped": 4.1,
+    "n_splits": 7.1
+  },
+  {
+    "dataset": "crop",
+    "Q": 250,
+    "baseline": 0.8902,
+    "plain": 0.9067,
+    "snap_all": 0.6424,
+    "snap_close": 0.8902,
+    "n_snapped": 16.9,
+    "n_splits": 24.0
+  },
+  {
+    "dataset": "crop",
+    "Q": 500,
+    "baseline": 0.9098,
+    "plain": 0.9118,
+    "snap_all": 0.7404,
+    "snap_close": 0.9145,
+    "n_snapped": 23.3,
+    "n_splits": 33.6
+  },
+  {
+    "dataset": "crop",
+    "Q": 1000,
+    "baseline": 0.9337,
+    "plain": 0.9435,
+    "snap_all": 0.6224,
+    "snap_close": 0.9384,
+    "n_snapped": 26.4,
+    "n_splits": 36.6
+  }
+]

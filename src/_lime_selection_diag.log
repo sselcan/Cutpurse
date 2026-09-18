@@ -1,0 +1,24 @@
+================================================================================================
+LIME vs SHAP feature-SELECTION vs true local influence  (paired, class-1 proba)
+================================================================================================
+[crop/lr/continuous] hit(infl): lime=0.53 shap=0.53 rand~0.43  |  captured: lime=0.66 shap=0.51
+[adult/lr/mixed] hit(infl): lime=0.79 shap=0.44 rand~0.27  |  captured: lime=0.94 shap=0.52
+[nursery/nb/categorical] hit(infl): lime=0.76 shap=0.58 rand~0.38  |  captured: lime=0.95 shap=0.70
+[nursery/lr/categorical] hit(infl): lime=0.78 shap=0.70 rand~0.38  |  captured: lime=0.95 shap=0.81
+[mushroom/lr/categorical] hit(infl): lime=0.65 shap=0.46 rand~0.14  |  captured: lime=0.77 shap=0.58
+[nursery/knn/categorical] hit(infl): lime=0.61 shap=0.66 rand~0.38  |  captured: lime=0.83 shap=0.83
+
+================================================================================================
+SUMMARY  (hit = top-k selection agreement with true local influence; captured = influence share)
+================================================================================================
+combo         type          hit_L  hit_S  hit_R  capt_L  capt_S    L-S      abl
+-------------------------------------------------------------------------------
+crop/lr       continuous     0.53   0.53   0.43    0.66    0.51   0.01  -0.0042
+adult/lr      mixed          0.79   0.44   0.27    0.94    0.52   0.34  +0.0078
+nursery/nb    categorical    0.76   0.58   0.38    0.95    0.70   0.18  +0.0191
+nursery/lr    categorical    0.78   0.70   0.38    0.95    0.81   0.08  +0.0198
+mushroom/lr   categorical    0.65   0.46   0.14    0.77    0.58   0.19  +0.0352
+nursery/knn   categorical    0.61   0.66   0.38    0.83    0.83  -0.04  +0.0442
+
+hit_L/S/R = LIME/SHAP/random selection agreement; L-S = LIME-minus-SHAP hit gap; abl = LIME-random attack-accuracy diff (from ablation).
+Wrote lime_selection_diag.json

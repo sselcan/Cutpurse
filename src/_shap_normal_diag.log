@@ -1,0 +1,50 @@
+==============================================================================
+EXP 1 — one-shot correctness (margin space, LR/NB)
+==============================================================================
+[adult/lr/margin] cos(w_single,g)=0.858  cos(w_single,p)=0.066  cos(w_batch@100,g)=1.000  cos(w_batch@100,p)=0.039
+    one-shot: cos(w_single,w_true)=1.0000  max|err|=2.220e-17
+[adult/nb/margin] cos(w_single,g)=0.852  cos(w_single,p)=-0.005  cos(w_batch@100,g)=1.000  cos(w_batch@100,p)=-0.016
+    one-shot: cos(w_single,w_true)=1.0000  max|err|=4.117e-14
+[breast/lr/margin] cos(w_single,g)=1.000  cos(w_single,p)=-0.004  cos(w_batch@100,g)=1.000  cos(w_batch@100,p)=-0.004
+    one-shot: cos(w_single,w_true)=1.0000  max|err|=6.569e-17
+[breast/nb/margin] cos(w_single,g)=0.999  cos(w_single,p)=-0.002  cos(w_batch@100,g)=1.000  cos(w_batch@100,p)=-0.001
+    one-shot: cos(w_single,w_true)=1.0000  max|err|=2.287e-09
+[mushroom/lr/margin] cos(w_single,g)=nan  cos(w_single,p)=0.352  cos(w_batch@100,g)=nan  cos(w_batch@100,p)=0.277
+    one-shot: cos(w_single,w_true)=1.0000  max|err|=1.156e-19
+[mushroom/nb/margin] cos(w_single,g)=nan  cos(w_single,p)=0.560  cos(w_batch@100,g)=nan  cos(w_batch@100,p)=0.316
+    one-shot: cos(w_single,w_true)=1.0000  max|err|=1.065e-14
+
+==============================================================================
+EXP 2 — cosine redundancy / locality (prob space)
+==============================================================================
+[adult/lr/prob] cos(w_single,g)=0.848  cos(w_single,p)=0.037  cos(w_batch@200,g)=0.999  cos(w_batch@200,p)=0.020
+[adult/nb/prob] cos(w_single,g)=0.408  cos(w_single,p)=0.012  cos(w_batch@200,g)=0.467  cos(w_batch@200,p)=-0.078
+[adult/knn/prob] cos(w_single,g)=0.064  cos(w_single,p)=-0.013  cos(w_batch@200,g)=0.027  cos(w_batch@200,p)=0.036
+[adult/mlp/prob] cos(w_single,g)=0.967  cos(w_single,p)=0.269  cos(w_batch@200,g)=0.999  cos(w_batch@200,p)=0.129
+[breast/lr/prob] cos(w_single,g)=0.015  cos(w_single,p)=0.004  cos(w_batch@200,g)=0.063  cos(w_batch@200,p)=-0.003
+[breast/nb/prob] cos(w_single,g)=0.001  cos(w_single,p)=0.009  cos(w_batch@200,g)=-0.132  cos(w_batch@200,p)=-0.003
+[breast/knn/prob] cos(w_single,g)=nan  cos(w_single,p)=0.214  cos(w_batch@200,g)=nan  cos(w_batch@200,p)=-0.001
+[breast/mlp/prob] cos(w_single,g)=0.028  cos(w_single,p)=-0.001  cos(w_batch@200,g)=0.263  cos(w_batch@200,p)=-0.001
+[mushroom/lr/prob] cos(w_single,g)=nan  cos(w_single,p)=0.175  cos(w_batch@200,g)=nan  cos(w_batch@200,p)=0.202
+[mushroom/nb/prob] cos(w_single,g)=nan  cos(w_single,p)=0.406  cos(w_batch@200,g)=nan  cos(w_batch@200,p)=0.253
+[mushroom/knn/prob] cos(w_single,g)=nan  cos(w_single,p)=0.121  cos(w_batch@200,g)=nan  cos(w_batch@200,p)=0.032
+[mushroom/mlp/prob] cos(w_single,g)=nan  cos(w_single,p)=-0.165  cos(w_batch@200,g)=nan  cos(w_batch@200,p)=-0.061
+
+==============================================================================
+SUMMARY — Exp2  (mean cosines; g=true FD normal, p=attack top-k direction)
+==============================================================================
+combo            cos(ws,g)  cos(wb200,g)  cos(g,p)   (g=NaN => all-categorical)
+adult/lr             0.848         0.999     0.066
+adult/nb             0.408         0.467    -0.208
+adult/knn            0.064         0.027    -0.194
+adult/mlp            0.967         0.999     0.018
+breast/lr            0.015         0.063    -0.025
+breast/nb            0.001        -0.132     0.036
+breast/knn             nan           nan       nan
+breast/mlp           0.028         0.263    -0.006
+mushroom/lr            nan           nan       nan
+mushroom/nb            nan           nan       nan
+mushroom/knn           nan           nan       nan
+mushroom/mlp           nan           nan       nan
+
+Wrote shap_normal_diag.json

@@ -1,0 +1,67 @@
+[
+  {
+    "dataset": "mushroom",
+    "model": "lr",
+    "Q": 1000,
+    "base": 0.8032,
+    "nodense": 0.86,
+    "dense": 0.86,
+    "d_dense_nod": 0.0,
+    "p_dense_nod": 1.0,
+    "d_dense_base": 0.0568,
+    "p_dense_base": 0.1055,
+    "secs": 5925.4
+  },
+  {
+    "dataset": "mushroom",
+    "model": "nb",
+    "Q": 1000,
+    "base": 0.6882,
+    "nodense": 0.7943,
+    "dense": 0.7943,
+    "d_dense_nod": 0.0,
+    "p_dense_nod": 1.0,
+    "d_dense_base": 0.1061,
+    "p_dense_base": 0.0195,
+    "secs": 5211.3
+  },
+  {
+    "dataset": "mushroom",
+    "model": "knn",
+    "Q": 1000,
+    "base": 0.7159,
+    "nodense": 0.73,
+    "dense": 0.73,
+    "d_dense_nod": 0.0,
+    "p_dense_nod": 1.0,
+    "d_dense_base": 0.014,
+    "p_dense_base": 0.625,
+    "secs": 19219.6
+  },
+  {
+    "dataset": "mushroom",
+    "model": "dt",
+    "Q": 1000,
+    "base": 0.881,
+    "nodense": 0.7627,
+    "dense": 0.7627,
+    "d_dense_nod": 0.0,
+    "p_dense_nod": 1.0,
+    "d_dense_base": -0.1183,
+    "p_dense_base": 0.0059,
+    "secs": 570.2
+  },
+  {
+    "dataset": "mushroom",
+    "model": "rdf",
+    "Q": 1000,
+    "base": 0.743,
+    "nodense": 0.8491,
+    "dense": 0.8491,
+    "d_dense_nod": 0.0,
+    "p_dense_nod": 1.0,
+    "d_dense_base": 0.1061,
+    "p_dense_base": 0.0098,
+    "secs": 688.7
+  }
+]

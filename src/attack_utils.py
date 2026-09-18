@@ -1,7 +1,7 @@
 from importlib import metadata
 import itertools
-# import lime
-# import lime.lime_tabular
+import lime
+import lime.lime_tabular
 import numpy as np
 import pandas as pd
 import random
@@ -79,6 +79,31 @@ def explanation_parser(expMap, expList, key, features):
     return result
 
 
+def grid_rules(explainer, x, features, isCat=None):
+    """Bin rules for `x` read straight off the explainer's discretizer -- zero model queries.
+
+    LIME's QuartileDiscretizer is fit on the explainer's training data when the explainer is
+    constructed (per-feature percentiles 25/50/75); it is a property of that data alone, not of the
+    model. An adversary that builds a LimeTabularExplainer over its own auxiliary pool therefore
+    already holds this grid without ever calling explain_instance -- which is what E5 measures.
+
+    Returns the same [name, low_edge, high_edge, weight] rows as `explanation_parser`, with weight 0
+    (no attribution is available, and none is used), so callers consume either source unchanged.
+    """
+    d = getattr(explainer, 'discretizer', None)
+    rows = []
+    for fi, name in enumerate(features):
+        lo = hi = -1
+        if d is not None and not (isCat is not None and isCat[fi]):
+            try:
+                b = int(d.lambdas[fi](np.array([float(x[fi])]))[0])
+                lo, hi = float(d.mins[fi][b]), float(d.maxs[fi][b])
+            except Exception:
+                lo = hi = -1
+        rows.append([name, lo, hi, 0])
+    return rows
+
+
 def extract_explanation_boundaries(model, explainer, n_ft):
     boundaries = np.zeros((n_ft, 3))
     sample = np.zeros(n_ft)
@@ -113,7 +138,9 @@ def sample_set_generation(dataset, n_classes, n_samples_per_class):  # Make sure
     return sample_set
 
 
-def traverse_explanations_LIME(sample_set, explainer, model, n_visits_lb, n_visits_ub, upper_limit, n_f_e, args2):
+def traverse_explanations_LIME(sample_set, explainer, model, n_visits_lb, n_visits_ub, upper_limit, n_f_e, args2,
+                               feature_select='explanation', use_threshold=True, online_disc_every=None,
+                               use_explanation=True):
     if len(args2) == 10:
         classes, features, n_classes, n_features, isCat, epsilon_set, canNegative, classPossibilities, dataset_name, feature_ranges = args2
     else:
@@ -147,25 +174,66 @@ def traverse_explanations_LIME(sample_set, explainer, model, n_visits_lb, n_visi
             preds += [classes[class_index]]
 
             visited_samples += [curr]
+            if online_disc_every and query % online_disc_every == 0 and len(visited_samples) >= 20:
+                # online update: refit the discretizer on the attacker's growing query set (seeds +
+                # everything queried so far) -- quartiles sharpen as the attack proceeds
+                try:
+                    explainer = lime.lime_tabular.LimeTabularExplainer(
+                        np.array(visited_samples, float), discretize_continuous=True)
+                except Exception:
+                    pass
             # 2. Get the explanation about the current sample
-            exp = explainer.explain_instance(curr, model.predict_proba)  #, top_labels=1)
-            exp_map = exp.as_map()
-            key = list(exp_map.keys())[0]
-            exp_list = exp.as_list(key)
-            exp_parsed = explanation_parser(exp_map, exp_list, key, features)
+            if use_explanation:
+                exp = explainer.explain_instance(curr, model.predict_proba)  #, top_labels=1)
+                exp_map = exp.as_map()
+                key = list(exp_map.keys())[0]
+                exp_list = exp.as_list(key)
+                exp_parsed = explanation_parser(exp_map, exp_list, key, features)
+            else:
+                # explanation-free adversary: bin edges from its OWN discretizer, no explain_instance
+                # (and hence none of LIME's ~5000 internal predict_proba calls on the target)
+                exp_parsed = grid_rules(explainer, curr, features, isCat)
 
             # 3. Generate new samples and check if they were visited before
             tmp_exps, indices, cpys = [], [], []
-            for i in range(k):
-                tmp_exps += [exp_parsed[i]]
+            _sel = (exp_parsed[:k] if feature_select == 'explanation'      # E2/H1: top-k vs random features
+                    else random.sample(exp_parsed, min(k, len(exp_parsed))))
+            for row in _sel:
+                tmp_exps += [row]
             for i in range(k):
                 #print(tmp_exps[i][0])
                 indices += [index for index, content in enumerate(features) if tmp_exps[i][0] in content]  #[0]
             for i in range(2 * k):
                 cpys += [np.copy(curr)]
             for i in range(k):
-                cpys[2 * i][indices[i]] = tmp_exps[i][2]
-                cpys[2 * i + 1][indices[i]] = tmp_exps[i][1]
+                lo_e, hi_e = tmp_exps[i][1], tmp_exps[i][2]
+                if use_threshold and lo_e == -1 and hi_e == -1:
+                    # LIME fits a SPARSE local model (num_features=10 by default), so a feature it
+                    # never scored has both edges at -1. Snapping to -1 would write an out-of-range
+                    # value. This is unreachable on the explanation arm (top-k always come from the
+                    # scored set) and arises only in the random-feature ablation on datasets with
+                    # more features than LIME returns. We must not simply skip the perturbation:
+                    # that would strip the THRESHOLD channel from the arm meant to ablate only the
+                    # ATTRIBUTION channel. Instead we recover the bin the current value falls in
+                    # from the discretizer itself -- the same global quantile grid LIME would have
+                    # used had it reported this feature -- so the arm differs from `default` only in
+                    # WHICH features are chosen.
+                    try:
+                        d = explainer.discretizer
+                        b = int(d.lambdas[indices[i]](np.array([curr[indices[i]]]))[0])
+                        lo_e, hi_e = d.mins[indices[i]][b], d.maxs[indices[i]][b]
+                    except Exception:
+                        lo_e = hi_e = -1          # no discretizer (categorical): fall through below
+                # NB: a feature LIME *did* score may still have one edge at -1 (a one-sided rule);
+                # that is Autolycus's own behaviour and is deliberately preserved. We test the EDGES,
+                # not the weight: explanation_parser rounds weights to 2dp, so a genuinely scored
+                # feature with |w| < 0.005 also reads as weight 0 while carrying valid edges.
+                if use_threshold and not (lo_e == -1 and hi_e == -1):
+                    cpys[2 * i][indices[i]] = hi_e
+                    cpys[2 * i + 1][indices[i]] = lo_e
+                else:                                          # E3a / no edge: step from current value
+                    cpys[2 * i][indices[i]] = curr[indices[i]]
+                    cpys[2 * i + 1][indices[i]] = curr[indices[i]]
             for i in range(2 * k):
                 ind_i = int(i / 2)
                 #tmp = (any((cpys[i]==x).all() for x in visited_samples) or any((cpys[i]==x).all() for x in samples))
@@ -378,7 +446,8 @@ def compute_hybrid_shap_features(explainer, model, X_train, x_q,
     return phi_q_mod
 
 def traverse_explanations_SHAP(sample_set, explainer, model, n_visits_lb, n_visits_ub, upper_limit, n_f_e, args2,
-                               model_name, X_train=None, y_train=None, explanation_type='vanilla', num_exp = 5):
+                               model_name, X_train=None, y_train=None, explanation_type='vanilla', num_exp = 5,
+                               quantile_grid=None):
     if len(args2) == 10:
         classes, features, n_classes, n_features, isCat, epsilon_set, canNegative, classPossibilities, dataset_name, feature_ranges = args2
     else:
@@ -443,7 +512,34 @@ def traverse_explanations_SHAP(sample_set, explainer, model, n_visits_lb, n_visi
             sort_index = np.flip(np.argsort(abs(exp)))[:k]
             cpys = []
             oldOption = False
-            if oldOption:
+            if quantile_grid is not None:
+                # SHAP + quantile grid (diagnostic): mirror base-LIME's mechanism EXACTLY -- snap each
+                # top-k SHAP feature to its bracketing quartile edge, nudge +/-1 across it, same bounds
+                # -- but the grid is built from the ATTACKER's data (aux) or the TARGET's (tgt), not from
+                # the target's LIME discretization. Tests whether LIME's threshold gain is a self-
+                # computable data-quantile grid. Feature choice is SHAP's top-k; categoricals aren't
+                # discretized (LIME doesn't either).
+                for _ in range(2 * k):
+                    cpys += [np.copy(curr)]
+                for i in range(k):
+                    f = sort_index[i]; v = curr[f]
+                    if isCat[f]:
+                        cpys[2 * i][f] = v; cpys[2 * i + 1][f] = v
+                    else:
+                        edges = quantile_grid[f]
+                        hi = edges[edges > v]; lo = edges[edges < v]
+                        cpys[2 * i][f]     = hi.min() if len(hi) else v   # snap to high bin edge
+                        cpys[2 * i + 1][f] = lo.max() if len(lo) else v   # snap to low  bin edge
+                for i in range(2 * k):
+                    ind_i = sort_index[int(i / 2)]
+                    if cpys[i][ind_i] >= 0:                               # nudge +/-1 across the edge (LIME epsilon=1)
+                        cpys[i][ind_i] += 1 if i % 2 == 0 else -1
+                    bad = (any((cpys[i] == x).all() for x in visited_samples) or
+                           any((cpys[i] == x).all() for x in samples) or
+                           (cpys[i][ind_i] < 0) or (cpys[i][ind_i] >= classPossibilities[ind_i]))
+                    if not bad:
+                        samples += [cpys[i]]
+            elif oldOption:
                 # 2.1. Old version with single feature changing
                 for i in range(2 * k):
                     cpys += [np.copy(curr)]
@@ -1319,38 +1415,77 @@ def create_manifold_aware_diverse_samples_knn(samples, classPossibilities, featu
 
 def find_boundary_point(target_model, x_a, x_b, iterations=10):
     """
-    Finds a point close to the decision boundary between x_a and x_b.
+    Finds a point close to the decision boundary between x_a and x_b
+    using binary search (bisection) along the interpolation line.
+    Note: uses full-vector interpolation; best for continuous features.
     """
-    # Get initial predictions
-    label_a = np.argmax(target_model.predict(x_a.reshape(1, -1)))
-    label_b = np.argmax(target_model.predict(x_b.reshape(1, -1)))
-    
+    label_a = int(target_model.predict(x_a.reshape(1, -1))[0])
+    label_b = int(target_model.predict(x_b.reshape(1, -1))[0])
+
     if label_a == label_b:
         raise ValueError("Points x_a and x_b must have different predicted classes.")
 
     low = 0.0
     high = 1.0
-    boundary_sample = x_a
+    boundary_sample = x_a.copy()
     query_count = 0
 
     for _ in range(iterations):
         mid = (low + high) / 2
-        # Interpolate between A and B
         x_mid = x_a + mid * (x_b - x_a)
-        
-        # Query the target model
-        current_label = np.argmax(target_model.predict(x_mid.reshape(1, -1)))
+        current_label = int(target_model.predict(x_mid.reshape(1, -1))[0])
         query_count += 1
-        
+
         if current_label == label_a:
-            # We are still on the "A" side, move closer to B
             low = mid
             boundary_sample = x_mid
         else:
-            # We crossed the boundary, move back toward A to refine
             high = mid
-            
+
     return boundary_sample, query_count
+
+
+def generate_tree_boundary_samples(model, seed_samples, seed_preds,
+                                   max_queries=120, bisect_iterations=8, max_pairs=20):
+    """
+    TRA-inspired: bisects between cross-class seed pairs to find decision boundary points.
+    For tree-based models (DT, RF), boundary points directly reveal axis-parallel split
+    thresholds, which are far more informative for surrogate training than interior samples.
+
+    Args:
+        model: target black-box model
+        seed_samples: list of seed samples (already queried)
+        seed_preds: list of predicted class labels corresponding to seed_samples
+        max_queries: query budget for this phase
+        bisect_iterations: bisection depth per pair (precision ≈ range / 2^iterations)
+        max_pairs: max cross-class pairs to process
+    Returns:
+        (boundary_samples, query_count)
+    """
+    boundary_samples = []
+    query_count = 0
+
+    cross_class_pairs = [
+        (i, j)
+        for i in range(len(seed_samples))
+        for j in range(i + 1, len(seed_samples))
+        if seed_preds[i] != seed_preds[j]
+    ]
+
+    random.shuffle(cross_class_pairs)
+    for i, j in cross_class_pairs[:max_pairs]:
+        if query_count + bisect_iterations > max_queries:
+            break
+        x_a = np.array(seed_samples[i], dtype=float)
+        x_b = np.array(seed_samples[j], dtype=float)
+        try:
+            boundary_pt, q = find_boundary_point(model, x_a, x_b, iterations=bisect_iterations)
+            query_count += q
+            boundary_samples.append(boundary_pt)
+        except ValueError:
+            continue
+
+    return boundary_samples, query_count
 
 def generate_shap_informed_samples(model, samples, explainer, isCat, feature_ranges, num_new_samples=10, top_k=5):
     samples_array = np.array(samples, dtype=float)
@@ -1404,15 +1539,16 @@ def generate_shap_informed_samples(model, samples, explainer, isCat, feature_ran
 
 # Use SHAP values to identify the most influential features for two samples from different classes and then create new samples by mixing those features.
 # Decision boundary samples can be generated by interpolating between two samples from different classes and using SHAP values to identify which features to perturb for creating new samples that are likely near the boundary.
-def generate_shap_informed_samples_new(model, samples, explainer, isCat, feature_ranges, num_new_samples=10, top_k=5):
+def generate_shap_informed_samples_new(model, samples, explainer, isCat, feature_ranges, num_new_samples=10, top_k=5, mid_log=None, use_shap=True):
     samples_array = np.array(samples, dtype=float)
     preds = model.predict_proba(samples_array)
-    
-    shap_results = explainer.shap_values(samples_array)
-    
-    # Standardize to a list of arrays
-    if not isinstance(shap_results, list):
-        shap_results = [shap_results]
+    if use_shap:
+        shap_results = explainer.shap_values(samples_array)
+        # Standardize to a list of arrays
+        if not isinstance(shap_results, list):
+            shap_results = [shap_results]
+    else:
+        shap_results = None  # ablation: no SHAP -> random top-k features (below)
 
     top_k = min(top_k, samples_array.shape[1])
 
@@ -1421,16 +1557,17 @@ def generate_shap_informed_samples_new(model, samples, explainer, isCat, feature
                  for j in range(len(samples_array))
                  if preds[i].argmax() != preds[j].argmax()]
     if not all_pairs:
-        return []
+        return [], 0
     random.shuffle(all_pairs)
     pair_pool = list(all_pairs)
 
     new_samples = []
+    query_count = 0
     for _ in range(num_new_samples):
         # Pick diverse cross-class pairs by exhausting the pre-shuffled pool before repeating
         if not pair_pool:
             pair_pool = list(all_pairs)
-            random.shuffle(pair_pool)
+            random.shuffle(pair_pool)           ## TODO instead of all pairs create pairs ffrom the closest classes
         idx_a, idx_b = pair_pool.pop()
         class_a = int(preds[idx_a].argmax())
         class_b = int(preds[idx_b].argmax())
@@ -1439,22 +1576,23 @@ def generate_shap_informed_samples_new(model, samples, explainer, isCat, feature
         s_a = np.array(samples_array[idx_a], dtype=float).flatten()
         s_b = np.array(samples_array[idx_b], dtype=float).flatten()
 
-        # FIX: Check if we have one array or one per class
-        if len(shap_results) == 1:
-            # For binary models with 1 output, class index doesn't exist in shap_results
-            importance_a = np.abs(shap_results[0][idx_a])
-            importance_b = np.abs(shap_results[0][idx_b])
+        # Select top-k features to blend at the midpoint. SHAP-guided (default): most SHAP-important
+        # features of the two parents. Ablation (use_shap=False): random top_k -- isolates whether
+        # SHAP's feature choice in boundary generation actually helps.
+        if use_shap:
+            if len(shap_results) == 1:
+                importance_a = np.abs(shap_results[0][idx_a])
+                importance_b = np.abs(shap_results[0][idx_b])
+            else:
+                importance_a = np.abs(shap_results[class_a][idx_a])
+                importance_b = np.abs(shap_results[class_b][idx_b])
+            combined_importance = np.array(importance_a + importance_b, dtype=float)
+            if combined_importance.ndim > 1:
+                combined_importance = combined_importance.sum(axis=tuple(range(1, combined_importance.ndim)))
+            combined_importance = combined_importance.flatten()
+            top_features = set(int(x) for x in np.argsort(combined_importance)[-top_k:])
         else:
-            # For multi-output models (or predict_proba)
-            importance_a = np.abs(shap_results[class_a][idx_a])
-            importance_b = np.abs(shap_results[class_b][idx_b])
-
-        # Force 1D float array — guards against object arrays or per-class SHAP outputs
-        combined_importance = np.array(importance_a + importance_b, dtype=float)
-        if combined_importance.ndim > 1:
-            combined_importance = combined_importance.sum(axis=tuple(range(1, combined_importance.ndim)))
-        combined_importance = combined_importance.flatten()
-        top_features = set(int(x) for x in np.argsort(combined_importance)[-top_k:])
+            top_features = set(random.sample(range(samples_array.shape[1]), min(top_k, samples_array.shape[1])))
 
         # Precompute midpoint for nudging and non-top interpolation
         midpoint = np.array([
@@ -1481,14 +1619,22 @@ def generate_shap_informed_samples_new(model, samples, explainer, isCat, feature
         anchor_b = s_b.copy()
 
         child_label = int(model.predict_proba([child])[0].argmax())
+        # Note: child_label is NOT counted here. The final child of this iteration
+        # will be queried again in Phase 3. Not counting child_label offsets that
+        # double-count: either child_label IS the final sample (Phase 3 counts it),
+        # or it's intermediate but a bisection mid that became the final child is
+        # double-counted instead — the two errors cancel, keeping the total correct.
 
-        for _ in range(2):
+        for _ in range(8):
             mid = np.array([
                 random.choice([anchor_a[i], anchor_b[i]]) if isCat[i]
                 else 0.5 * anchor_a[i] + 0.5 * anchor_b[i]
                 for i in range(len(anchor_a))
             ])
             mid_label = int(model.predict_proba([mid])[0].argmax())
+            query_count += 1  # count all bisection intermediates
+            if mid_log is not None:
+                mid_log.append((mid.copy(), mid_label))  # recycle: every queried mid is free labelled data
             if mid_label != child_label:
                 # label flipped — boundary is between anchor_a and mid
                 anchor_b = mid
@@ -1499,11 +1645,433 @@ def generate_shap_informed_samples_new(model, samples, explainer, isCat, feature
 
         new_samples.append(child)
 
-    return new_samples
+    return new_samples, query_count
+
+
+def _feature_index(feat_name, features):
+    """Map a LIME rule's feature name back to its column index, mirroring the substring match
+    used in `traverse_explanations_LIME`. Returns None if unmatched."""
+    for idx, content in enumerate(features):
+        if feat_name in content:
+            return idx
+    return None
+
+
+def generate_lime_informed_samples(model, samples, lime_explainer, isCat, feature_ranges,
+                                   features, num_new_samples=10, top_k=5, mid_log=None,
+                                   bisect_refine=True, lime_num_samples=1000,
+                                   densify=0, densify_step_frac=0.03, feature_select='explanation',
+                                   use_threshold=True, use_explanation=True):
+    """LIME counterpart to `generate_shap_informed_samples_new` (the Phase-2 boundary search).
+
+    Same skeleton -- cross-class pairs, pick top-k features, build a child toward the opposite
+    anchor, then bisect -- but the top-k features are SNAPPED TO LIME'S BIN EDGE (the local
+    discretization threshold LIME hands over for free) instead of the blind midpoint. Per the
+    mechanism study, that bin edge is LIME's unique signal over SHAP: it tells the attacker WHERE
+    the boundary along a feature is, which SHAP (magnitude-only) must reconstruct by bisection.
+
+    bisect_refine=True keeps an 8-step bisection AFTER the edge snap (free-threshold init + search);
+    bisect_refine=False returns the point sitting on LIME's edge (pure free threshold) so the two
+    can be A/B'd. LIME's internal queries are NOT charged (explanation is bundled with the label,
+    as in `traverse_explanations_LIME`); only bisection intermediates are counted in query_count.
+    """
+    samples_array = np.array(samples, dtype=float)
+    preds = model.predict_proba(samples_array)
+    n_features = samples_array.shape[1]
+    top_k = min(top_k, n_features)
+
+    all_pairs = [(i, j) for i in range(len(samples_array))
+                 for j in range(len(samples_array))
+                 if preds[i].argmax() != preds[j].argmax()]
+    if not all_pairs:
+        return [], 0
+    random.shuffle(all_pairs)
+    pair_pool = list(all_pairs)
+
+    lime_cache = {}   # anchor index -> parsed LIME rules (explain_instance is the expensive call)
+    new_samples = []
+    query_count = 0
+    for _ in range(num_new_samples):
+        if not pair_pool:
+            pair_pool = list(all_pairs)
+            random.shuffle(pair_pool)
+        idx_a, idx_b = pair_pool.pop()
+        s_a = np.array(samples_array[idx_a], dtype=float).flatten()
+        s_b = np.array(samples_array[idx_b], dtype=float).flatten()
+
+        if idx_a not in lime_cache:
+            if use_explanation:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    exp = lime_explainer.explain_instance(s_a, model.predict_proba,
+                                                          num_features=n_features,
+                                                          num_samples=lime_num_samples)
+                key = list(exp.as_map().keys())[0]
+                lime_cache[idx_a] = explanation_parser(exp.as_map(), exp.as_list(key), key, features)
+            else:
+                # explanation-free: the bin edges this phase actually consumes come from the
+                # discretizer, so no explain_instance (no lime_num_samples target queries) is needed
+                lime_cache[idx_a] = grid_rules(lime_explainer, s_a, features, isCat)
+        parsed = lime_cache[idx_a]   # [feat_name, low_edge, high_edge, weight], sorted by |weight|
+
+        top_feats = {}
+        sel = (parsed[:top_k] if feature_select == 'explanation'
+               else random.sample(parsed, min(top_k, len(parsed))))   # E2/H1: random-feature ablation
+        for row in sel:
+            fi = _feature_index(row[0], features)
+            if fi is not None:
+                top_feats[fi] = (row[1], row[2])   # (low_edge, high_edge); -1 = no info
+
+        child = s_a.copy()
+        for i in range(n_features):
+            if i in top_feats:
+                if isCat[i]:
+                    child[i] = random.choice([s_a[i], s_b[i]])
+                    continue
+                low, high = top_feats[i]
+                # snap to the bin edge on the side toward the opposite-class anchor b
+                edge = high if s_b[i] >= s_a[i] else low
+                if (not use_threshold) or edge is None or edge == -1:
+                    child[i] = 0.5 * s_a[i] + 0.5 * s_b[i]   # E3a/no-threshold or no edge -> midpoint
+                else:
+                    child[i] = float(edge)
+            else:
+                if isCat[i]:
+                    child[i] = random.choice([s_a[i], s_b[i]])
+                else:
+                    child[i] = np.random.uniform(min(s_a[i], s_b[i]), max(s_a[i], s_b[i]))
+
+        if not bisect_refine:
+            new_samples.append(child)
+            continue
+
+        # Adaptive boundary search: bisect the edge-snapped child against s_b (mirrors the SHAP
+        # version). Every queried mid is recycled via mid_log as free boundary-labelled data.
+        anchor_a = child.copy()
+        anchor_b = s_b.copy()
+        child_label = int(model.predict_proba([child])[0].argmax())
+        for _ in range(8):
+            mid = np.array([
+                random.choice([anchor_a[i], anchor_b[i]]) if isCat[i]
+                else 0.5 * anchor_a[i] + 0.5 * anchor_b[i]
+                for i in range(len(anchor_a))
+            ])
+            mid_label = int(model.predict_proba([mid])[0].argmax())
+            query_count += 1
+            if mid_log is not None:
+                mid_log.append((mid.copy(), mid_label))
+            if mid_label != child_label:
+                anchor_b = mid
+                child = mid
+            else:
+                anchor_a = mid
+        new_samples.append(child)
+
+        # Threshold DENSIFICATION: pile target-labelled points bracketing the refined threshold on
+        # the primary continuous boundary feature, so the surrogate pins the split. Uses LIME's free
+        # bin edge (already localised by the bisection above); each point is a real query (counted)
+        # recycled as boundary-labelled training data via mid_log.
+        if densify > 0 and mid_log is not None and bisect_refine:
+            fdi = next((fi for fi in top_feats if not isCat[fi]), None)
+            if fdi is not None:
+                lo, hi = feature_ranges[fdi]
+                rng = (hi - lo) if (np.isfinite(lo) and np.isfinite(hi) and hi > lo) else (abs(child[fdi]) or 1.0)
+                step = densify_step_frac * rng
+                for m in range(1, densify + 1):
+                    for sgn in (-1.0, 1.0):
+                        pt = child.copy()
+                        pt[fdi] = child[fdi] + sgn * m * step
+                        if np.isfinite(lo) and np.isfinite(hi) and hi > lo:
+                            pt[fdi] = float(np.clip(pt[fdi], lo, hi))
+                        lbl = int(model.predict_proba([pt])[0].argmax())
+                        query_count += 1
+                        mid_log.append((pt.copy(), lbl))
+
+    return new_samples, query_count
+
+
+def shap_guided_counterfactual_flip(model, explainer, s_a, s_b, model_name, max_flips=None, query_log=None, use_shap=True):
+    """
+    SHAP-guided greedy categorical counterfactual walk from s_a toward s_b.
+
+    At each step, flips the single feature with the highest positive SHAP value
+    for the current predicted class (i.e. the feature most strongly holding the
+    prediction where it is) to the corresponding value from s_b. This monotonically
+    weakens the current class's SHAP-attributed margin, so the target model will
+    eventually flip its prediction in at most `num_differing_features` steps.
+
+    Returns (pre_boundary, post_boundary, queries):
+        pre_boundary : last sample BEFORE the prediction flipped (confident orig class)
+        post_boundary: first sample AFTER the prediction flipped (confident target class)
+        queries      : number of target-model predict_proba calls made
+    If no flip occurs within max_flips, returns (last_sample, last_sample, queries).
+    """
+    current = np.asarray(s_a, dtype=float).copy()
+    target  = np.asarray(s_b, dtype=float).copy()
+    n_feat  = len(current)
+    if max_flips is None:
+        max_flips = n_feat
+
+    orig_class = int(np.asarray(model.predict_proba([current])).ravel().argmax()) \
+                 if model.predict_proba([current]).shape[-1] > 1 \
+                 else int(model.predict_proba([current])[0].argmax())
+    queries = 1
+    flipped = set()
+    pre_boundary = current.copy()
+    if query_log is not None:
+        query_log.append((current.copy(), orig_class))
+
+    for _ in range(max_flips):
+        # 1. Eligible features: still differ from target, not already flipped.
+        candidates = [i for i in range(n_feat)
+                      if i not in flipped and current[i] != target[i]]
+        if not candidates:
+            break
+
+        # 2. Pick the feature to flip. SHAP-guided: feature with the strongest pull toward the current
+        #    class (highest positive SHAP). Ablation (use_shap=False): random eligible feature, with NO
+        #    SHAP query -- isolates whether SHAP guidance helps vs. the flip/boundary machinery itself.
+        if use_shap:
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore")
+                sv = explainer.shap_values(current)
+            sv_arr = np.asarray(sv)
+            if model_name in ('dt', 'rdf'):
+                if sv_arr.ndim == 2 and sv_arr.shape[1] > orig_class:
+                    sv_orig = sv_arr[:, orig_class]
+                else:
+                    sv_orig = sv_arr.ravel()
+            else:
+                if isinstance(sv, list):
+                    sv_orig = np.asarray(sv[orig_class] if len(sv) > orig_class else sv[0]).ravel()
+                else:
+                    sv_orig = sv_arr.ravel()
+            sv_orig = sv_orig.astype(float).flatten()
+            if sv_orig.shape[0] != n_feat:
+                sv_orig = sv_orig[:n_feat] if sv_orig.shape[0] > n_feat else np.pad(sv_orig, (0, n_feat - sv_orig.shape[0]))
+            best = max(candidates, key=lambda i: sv_orig[i])
+        else:
+            best = random.choice(candidates)
+
+        # 4. Execute the flip.
+        pre_boundary = current.copy()
+        current = current.copy()
+        current[best] = target[best]
+        flipped.add(best)
+
+        # 5. Query the target model.
+        new_class = int(model.predict_proba([current])[0].argmax())
+        queries += 1
+        if query_log is not None:
+            query_log.append((current.copy(), new_class))
+
+        if new_class != orig_class:
+            # Boundary crossed. pre_boundary is confidently orig_class,
+            # current is confidently new_class, and they differ in exactly
+            # one feature — the feature that controls the local boundary.
+            return pre_boundary, current.copy(), queries
+
+    # No flip occurred within the budget — return the final state twice.
+    return pre_boundary, current.copy(), queries
+
+
+def expand_confident_descendants(model, explainer, pre_boundary, post_boundary,
+                                  isCat, classPossibilities, epsilon_set,
+                                  model_name, num_per_side=3, confidence_threshold=0.8,
+                                  max_attempts_per_side=10, canNegative=None, query_log=None):
+    """
+    Given a boundary straddle pair (pre, post), walk ε-perturbations AWAY from the
+    boundary on each side to produce confidently-labeled training samples.
+
+    For each side, starting from the straddle sample, repeatedly applies a single
+    ε-perturbation in the SHAP-indicated "into the class" direction (opposite the
+    feature that controls the boundary), keeping each candidate only if the target
+    model still predicts the expected class with probability >= confidence_threshold.
+
+    Returns (confident_samples, confident_labels, queries).
+    """
+    confident_samples = []
+    confident_labels  = []
+    queries = 0
+
+    for anchor, expected_class in [(pre_boundary, None), (post_boundary, None)]:
+        anchor = np.asarray(anchor, dtype=float).copy()
+        expected_class = int(model.predict_proba([anchor])[0].argmax())
+        queries += 1
+        if query_log is not None:
+            query_log.append((anchor.copy(), expected_class))
+
+        # SHAP on the anchor w.r.t. its own class tells us which features pull
+        # the prediction deeper into that class. We ε-perturb those features in
+        # the direction that INCREASES the SHAP-attributed margin.
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore")
+            sv = explainer.shap_values(anchor)
+        sv_arr = np.asarray(sv)
+        if model_name in ('dt', 'rdf'):
+            if sv_arr.ndim == 2 and sv_arr.shape[1] > expected_class:
+                sv_own = sv_arr[:, expected_class]
+            else:
+                sv_own = sv_arr.ravel()
+        else:
+            if isinstance(sv, list):
+                sv_own = np.asarray(sv[expected_class] if len(sv) > expected_class else sv[0]).ravel()
+            else:
+                sv_own = sv_arr.ravel()
+        sv_own = sv_own.astype(float).flatten()
+        if sv_own.shape[0] != len(anchor):
+            sv_own = sv_own[:len(anchor)] if sv_own.shape[0] > len(anchor) \
+                else np.pad(sv_own, (0, len(anchor) - sv_own.shape[0]))
+
+        # Rank features by how strongly they already support expected_class.
+        # Positive SHAP -> pushing toward expected_class -> perturbing in its
+        # natural direction should deepen confidence.
+        feat_order = list(np.argsort(-sv_own))  # descending
+
+        kept = 0
+        attempts = 0
+        seed = anchor.copy()
+        while kept < num_per_side and attempts < max_attempts_per_side:
+            attempts += 1
+            candidate = seed.copy()
+            # Perturb the top-k most supportive features by one epsilon step each,
+            # choosing the sign that moves AWAY from the boundary (positive SHAP
+            # contribution increased). For categorical features we re-randomize
+            # within valid categories, biased to stay away from post_boundary's value.
+            k = min(3, len(feat_order))
+            for i in range(k):
+                fi = feat_order[i]
+                if isCat[fi]:
+                    # Stay at anchor's value (which is the "confident" side)
+                    # but occasionally jitter to another category != the opposite side.
+                    if random.random() < 0.5:
+                        max_cat = int(classPossibilities[fi])
+                        choices = [c for c in range(max_cat) if c != int(anchor[fi])]
+                        if choices:
+                            candidate[fi] = float(random.choice(choices))
+                else:
+                    step = epsilon_set[fi] * random.randint(1, 2)
+                    # Sign: if sv_own[fi] > 0, feature value pushes toward expected_class;
+                    # nudge further in whichever direction increases that contribution.
+                    # Without access to gradient, use a +/- trial biased by SHAP sign.
+                    direction = 1.0 if sv_own[fi] >= 0 else -1.0
+                    new_val = candidate[fi] + direction * step
+                    # Respect the dataset's non-negative feature constraint the
+                    # same way the main SHAP3 loop does (cond2 = tmp1 >= 0).
+                    # Without this guard MultinomialNB fit() crashes on datasets
+                    # like mushroom / nursery that disallow negatives.
+                    feature_can_neg = True if canNegative is None else bool(canNegative[fi])
+                    if (not feature_can_neg) and new_val < 0:
+                        # Try the opposite direction; if that still violates,
+                        # leave the feature unchanged for this candidate.
+                        alt_val = candidate[fi] - direction * step
+                        if alt_val >= 0:
+                            new_val = alt_val
+                        else:
+                            new_val = candidate[fi]
+                    candidate[fi] = new_val
+
+            # Confidence check against the target model.
+            proba = model.predict_proba([candidate])[0]
+            queries += 1
+            pred = int(np.argmax(proba))
+            if query_log is not None:
+                query_log.append((candidate.copy(), pred))
+            if pred == expected_class and float(np.max(proba)) >= confidence_threshold:
+                confident_samples.append(candidate)
+                confident_labels.append(expected_class)
+                kept += 1
+                seed = candidate  # chain: walk further away from the boundary
+
+    return confident_samples, confident_labels, queries
+
+
+def generate_counterfactual_confident_samples(model, explainer, sample_set, preds,
+                                               isCat, classPossibilities, epsilon_set, model_name,
+                                               num_cross_pairs=5, num_per_side=3,
+                                               confidence_threshold=0.8, canNegative=None, query_log=None):
+    """
+    Phase 2 orchestration helper (mirroring the role that
+    `generate_shap_informed_samples_new` plays for SHAP3).
+
+    For each cross-class seed pair (capped at `num_cross_pairs`):
+      1. shap_guided_counterfactual_flip  -> straddle pair (pre, post)
+      2. confirm the flip actually crossed the boundary
+      3. expand_confident_descendants      -> clean-label samples each side
+      4. confident descendants -> TRAVERSAL QUEUE (clean-label parents, will
+         spawn useful ε-children and also enter training data via the main loop)
+      5. straddle pair (pre, post) -> DIRECT TRAINING DATA for trees only:
+         axis-aligned split revelation; goes straight into visited_samples/preds
+         with labels already known from the flip, so the main loop does NOT
+         re-query them and does NOT ε-perturb them (avoids boundary noise
+         cascading into ε-children).
+
+    Returns:
+        queue_samples     : list[np.ndarray]  — append to traversal queue (samples)
+        direct_samples    : list[np.ndarray]  — append directly to visited_samples
+        direct_labels     : list[int]         — append directly to preds
+        query_count       : int               — total overhead target-model queries
+    """
+    overhead = 0
+    queue_samples = []
+    direct_samples = []
+    direct_labels = []
+
+    cross_pairs = []
+    for i in range(len(sample_set)):
+        for j in range(len(sample_set)):
+            if preds[i] != preds[j]:
+                cross_pairs.append((sample_set[i], sample_set[j]))
+    random.shuffle(cross_pairs)
+    cross_pairs = cross_pairs[:num_cross_pairs]
+
+    successful_flips = 0
+    for s_a, s_b in cross_pairs:
+        pre, post, q1 = shap_guided_counterfactual_flip(
+            model, explainer, s_a, s_b, model_name, query_log=query_log
+        )
+        overhead += q1
+
+        # Verify the walk actually crossed the target's decision boundary.
+        pred_pre  = int(model.predict_proba([pre])[0].argmax())
+        pred_post = int(model.predict_proba([post])[0].argmax())
+        overhead += 2
+        if query_log is not None:
+            query_log.append((np.asarray(pre, dtype=float).copy(), pred_pre))
+            query_log.append((np.asarray(post, dtype=float).copy(), pred_post))
+        if pred_pre == pred_post:
+            continue
+        successful_flips += 1
+
+        conf, conf_labels, q2 = expand_confident_descendants(
+            model, explainer, pre, post,
+            isCat, classPossibilities, epsilon_set, model_name,
+            num_per_side=num_per_side, confidence_threshold=confidence_threshold,
+            canNegative=canNegative, query_log=query_log,
+        )
+        overhead += q2
+        # Confident descendants -> traversal queue (clean-label, safe to ε-perturb).
+        queue_samples.extend(conf)
+
+        # Straddle pair: trees only. Direct-add to training data with the
+        # labels we already know from pred_pre / pred_post. Do NOT put them
+        # on the traversal queue — ε-perturbing boundary points cascades
+        # label noise through their ε-children.
+        if model_name in ('dt', 'rdf'):
+            direct_samples.extend([pre, post])
+            direct_labels.extend([pred_pre, pred_post])
+
+    print(f"[cf+desc] {successful_flips}/{len(cross_pairs)} flips succeeded,"
+          f" queue={len(queue_samples)}, direct={len(direct_samples)},"
+          f" {overhead} overhead queries")
+    return queue_samples, direct_samples, direct_labels, overhead
+
 
 #   version 3: adding diverse and target-model-confident samples for categorical datasets (nursey and mushroom) in the beginning
 def traverse_explanations_SHAP3(sample_set, explainer, model, n_visits_lb, n_visits_ub, upper_limit, n_f_e, args2,
-                               model_name, X_train=None, y_train=None, explanation_type='vanilla', num_exp = 5):
+                               model_name, X_train=None, y_train=None, explanation_type='vanilla', num_exp = 5,
+                               recycle_bisection=True, use_shap_gen=True, use_shap_traverse=True,
+                               use_diverse=True, n_middle=10):
     classes, features, n_classes, n_features, isCat, epsilon_set, canNegative, classPossibilities, dataset_name, feature_ranges = args2
     print("Dataset name in traverse_explanations_SHAP3:", dataset_name)
     if isinstance(n_visits_lb, int):
@@ -1511,6 +2079,7 @@ def traverse_explanations_SHAP3(sample_set, explainer, model, n_visits_lb, n_vis
         n_v_ub = np.ones(len(classes)) * n_visits_ub
     n_visits = np.zeros(len(classes))
     samples = sample_set.copy()
+    seed_samples = list(sample_set)  # preserve original seed for tree boundary bisection
     init_preds = model.predict_proba(samples)
     preds = []
     visited_samples = []
@@ -1527,21 +2096,95 @@ def traverse_explanations_SHAP3(sample_set, explainer, model, n_visits_lb, n_vis
     # diverse_samples = create_copula_diverse_samples(samples, classPossibilities, feature_ranges, isCat)
     # diverse_samples = create_manifold_aware_diverse_samples(samples, classPossibilities, feature_ranges, isCat)
     # diverse_samples = create_manifold_aware_diverse_samples_knn(samples, classPossibilities, feature_ranges, isCat)
-    diverse_samples = create_manifold_aware_diverse_samples_corrected(samples, classPossibilities, feature_ranges, isCat)
-
     # diverse_samples = create_copula_diverse_samples_distance_based(samples, classPossibilities, isCat, feature_ranges)
-    selected_diverse_samples = []
-    while len(diverse_samples) > 0:
-        current_diverse  = diverse_samples.pop(0)
-        query += 1
-        if(model.predict_proba([current_diverse]).max() > 0.8): # only add samples that are confidently classified
-            print("Diverse samples left to process:", len(diverse_samples))
-            selected_diverse_samples += [current_diverse]
 
-    middle_samples = generate_shap_informed_samples_new(model, samples, explainer, isCat, feature_ranges, num_new_samples=10, top_k=5)
+
+    selected_diverse_samples = []
+    if use_diverse:  # Phase 1 diverse generation (ablatable)
+        diverse_samples = create_manifold_aware_diverse_samples_corrected(samples, classPossibilities, feature_ranges, isCat)
+        while len(diverse_samples) > 0:
+            current_diverse  = diverse_samples.pop(0)
+            query += 1
+            if(model.predict_proba([current_diverse]).max() > 0.8):  # only add confidently-classified samples
+                selected_diverse_samples += [current_diverse]
+
+    bisection_mids = [] if recycle_bisection else None
+    middle_samples, shap_query_count = generate_shap_informed_samples_new(model, samples, explainer, isCat, feature_ranges, num_new_samples=n_middle, top_k=5, mid_log=bisection_mids, use_shap=use_shap_gen)
+    # middle_samples = generate_shap_informed_samples(model, samples, explainer, isCat, feature_ranges, num_new_samples=10, top_k=5)
+
+    # Track bisection overhead separately: these are real model queries but they are
+    # intermediate bisection steps that don't produce training samples. Adding them to
+    # `query` would starve Phase 3 of its budget. They are included in the returned
+    # total so the reported query count remains accurate.
+    overhead_queries = 0
+    overhead_queries = shap_query_count
     samples += middle_samples
     samples += selected_diverse_samples
-   
+
+    # Recycle the bisection intermediates: every mid was queried (already counted in overhead) and is
+    # target-labelled, so add it directly to training instead of discarding it -- boundary-concentrated,
+    # clean-label, zero extra budget. Mirrors SHAP4b's train-on-all-queried. Added to visited_samples
+    # (not the queue) so they are NOT ε-perturbed.
+    if recycle_bisection and bisection_mids:
+        for ms, mlab in bisection_mids:
+            if n_visits[int(mlab)] < n_v_ub[int(mlab)]:
+                n_visits[int(mlab)] += 1
+                preds += [classes[int(mlab)]]
+                visited_samples += [np.asarray(ms, dtype=float)]
+
+    # Phase 2 (NEW): SHAP-guided counterfactual flip + confident descendant expansion.
+    # Replaces the midpoint-bisection middle_samples block above with a principled
+    # boundary search. Toggle by commenting this block in/out, same as the
+    # diverse-sample and generate_shap_informed_samples_new alternatives.
+    #   - shap_guided_counterfactual_flip: greedy SHAP-guided walk to the boundary
+    #   - expand_confident_descendants:    ε-walk AWAY from the boundary, rejection-
+    #                                       sampled on predict_proba.max() >= threshold
+    #   - Confident descendants -> traversal queue (spawn ε-children).
+    #   - Straddle pair (pre/post) -> DIRECT training data for trees only
+    #     (dt/rdf): bypasses the ε-perturbation loop entirely so boundary noise
+    #     doesn't cascade into their children.
+    # queue_samples, direct_samples, direct_labels, new_overhead = generate_counterfactual_confident_samples(
+    #     model, explainer, samples, preds,
+    #     isCat, classPossibilities, epsilon_set, model_name,
+    #     num_cross_pairs=5, num_per_side=3, confidence_threshold=0.8,
+    #     canNegative=canNegative,
+    # )
+    # overhead_queries += new_overhead
+    # samples += queue_samples
+    # # Direct training-data injection (tree-only payload from the helper).
+    # for ds, dl in zip(direct_samples, direct_labels):
+    #     visited_samples += [ds]
+    #     preds += [dl]
+    #     # Respect per-class visit accounting so the main loop's n_v_ub caps
+    #     # stay consistent with what actually ended up in the training set.
+    #     if 0 <= int(dl) < len(n_visits):
+    #         n_visits[int(dl)] += 1
+
+    # for ds in middle_samples:
+    #     dl = model.predict_proba([ds])
+    #     class_index = np.argmax(dl)
+    #     # Respect per-class visit accounting so the main loop's n_v_ub caps
+    #     # stay consistent with what actually ended up in the training set.
+    #     if n_visits[class_index] < n_v_ub[class_index]:
+    #         n_visits[class_index] += 1
+    #         preds += [classes[class_index]]
+    #         visited_samples += [ds]
+
+    # Phase 2.5 (TRA-inspired): for tree-based models, bisect cross-class seed pairs to
+    # find exact decision boundary points. Each boundary point directly reveals an
+    # axis-parallel split threshold, which is far more informative for surrogate DT/RF
+    # training than interior samples found by ε-perturbation alone.
+    # if model_name in ('dt', 'rdf'):
+    #     seed_preds = [int(np.argmax(p)) for p in init_preds]
+    #     if upper_limit > query:
+    #         tree_bnd_samples, tree_bnd_queries = generate_tree_boundary_samples(
+    #             model, seed_samples, seed_preds,
+    #             max_queries=120, bisect_iterations=8, max_pairs=20
+    #         )
+    #         overhead_queries += tree_bnd_queries
+    #         samples += tree_bnd_samples
+    #         print(f"[Tree boundary] Added {len(tree_bnd_samples)} boundary samples ({tree_bnd_queries} overhead queries)")
+
    # for i in range(len(classes)):
     #     # generate target-model-confident samples near the decision boundary between class i and other classes
     #     print("Generating boundary samples for class:", classes[i])
@@ -1559,6 +2202,8 @@ def traverse_explanations_SHAP3(sample_set, explainer, model, n_visits_lb, n_vis
     #             except ValueError:
     #                 # Points have the same predicted class, skip
     #                 continue
+
+    upper_limit = upper_limit - overhead_queries  # Adjust upper limit for Phase 3 to account for overhead queries in Phase 2.5
     while len(samples) != 0 and not all(isPassed) and not query > upper_limit:
         # 1. Print the information about the current sample
         query += 1
@@ -1573,15 +2218,20 @@ def traverse_explanations_SHAP3(sample_set, explainer, model, n_visits_lb, n_vis
             n_visits[class_index] += 1
             preds += [classes[class_index]]
             visited_samples += [curr]
-            # 2. Get the SHAP explanation
-            with warnings.catch_warnings():
-                warnings.filterwarnings("ignore")
-                if model_name == 'dt' or model_name == 'rdf':
-                    exp = explainer.shap_values(curr)[:, class_index]
-                else:
-                    exp = explainer.shap_values(curr)
-            k = min(np.count_nonzero(exp), n_f_e)  #k = n_f_e
-            sort_index = np.flip(np.argsort(abs(exp)))[:k]
+            # 2. Choose features to perturb. SHAP-guided (default): top-k by |SHAP|. Ablation
+            #    (use_shap_traverse=False): random k features, no SHAP query.
+            if use_shap_traverse:
+                with warnings.catch_warnings():
+                    warnings.filterwarnings("ignore")
+                    if model_name == 'dt' or model_name == 'rdf':
+                        exp = explainer.shap_values(curr)[:, class_index]
+                    else:
+                        exp = explainer.shap_values(curr)
+                k = min(np.count_nonzero(exp), n_f_e)  #k = n_f_e
+                sort_index = np.flip(np.argsort(abs(exp)))[:k]
+            else:
+                k = min(n_f_e, n_features)
+                sort_index = np.array(random.sample(range(n_features), k))
             cpys = []
             oldOption = False
             if oldOption:
@@ -1638,7 +2288,615 @@ def traverse_explanations_SHAP3(sample_set, explainer, model, n_visits_lb, n_vis
                         samples += [cpys[i]]
     # for i in range(len(visited_samples)):
     #     print("Visited sample ", i, ": ", visited_samples[i], " Predicted as class ", preds[i])
-    return visited_samples, preds, query
+    return visited_samples, preds, query + overhead_queries
+
+
+def create_lime_threshold_diverse_samples(samples, explainer, model, features, isCat,
+                                          classPossibilities, feature_ranges,
+                                          num_desired_samples=10, top_k=5, pool_size=400,
+                                          plausibility_percentile=90, lime_num_samples=1000,
+                                          max_cross_feats=3, max_seeds_explained=20):
+    """Decision-cell-covering diverse generation using LIME's bin-edge thresholds.
+
+    Alternative to the geometric create_manifold_aware_diverse_samples_corrected. Instead of max-min
+    Euclidean spread (model-blind), it (1) harvests the target's LIME thresholds for FREE from the
+    already-queried seeds, (2) generates candidates that CROSS those thresholds into different
+    decision cells (anchored on real seeds, so on-manifold), (3) plausibility-filters them, and
+    (4) greedily selects the candidates that cover the most distinct (feature, threshold, side)
+    configurations -- i.e. the most distinct behavioural regions of the target. Returns UNQUERIED
+    candidates; the caller queries + confidence-filters them (as with the geometric generator).
+    Falls back to the geometric generator if LIME surfaces no thresholds (e.g. a linear target)."""
+    original_pool = np.array(samples, dtype=float)
+    if np.any(np.isnan(original_pool)):
+        original_pool = np.nan_to_num(original_pool)
+    n_features = original_pool.shape[1]
+
+    # 1. Harvest LIME bin-edge thresholds + per-feature importance from the seeds (free explanations)
+    thresholds, importance = {}, np.zeros(n_features)
+    seed_idx = list(range(len(original_pool)))
+    if len(seed_idx) > max_seeds_explained:
+        seed_idx = list(np.random.choice(len(original_pool), max_seeds_explained, replace=False))
+    for si in seed_idx:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            exp = explainer.explain_instance(original_pool[si], model.predict_proba,
+                                             num_features=n_features, num_samples=lime_num_samples)
+        key = list(exp.as_map().keys())[0]
+        parsed = explanation_parser(exp.as_map(), exp.as_list(key), key, features)  # [name, low, high, w]
+        for row in parsed[:top_k]:
+            fi = _feature_index(row[0], features)
+            if fi is None:
+                continue
+            importance[fi] += abs(row[3])
+            for edge in (row[1], row[2]):
+                if edge is not None and edge != -1:
+                    thresholds.setdefault(fi, set()).add(float(edge))
+    thresholds = {f: sorted(v) for f, v in thresholds.items() if v}
+    if not thresholds:   # no cells discovered (e.g. linear target) -> geometric fallback
+        return create_manifold_aware_diverse_samples_corrected(
+            samples, classPossibilities, feature_ranges, isCat, num_desired_samples=num_desired_samples)
+    cross_feats = sorted(thresholds.keys(), key=lambda f: -importance[f])
+
+    def point_cover(x):   # (feature, threshold, side) triples this point realises
+        return {(f, t, int(x[f] >= t)) for f, edges in thresholds.items() for t in edges}
+
+    def cross_value(anchor_val, f):   # a value for f in a DIFFERENT threshold interval than the anchor
+        edges = thresholds[f]
+        lo, hi = feature_ranges[f]
+        bounds = [lo] + list(edges) + [hi]
+        ai = next((bi for bi in range(len(bounds) - 1) if bounds[bi] <= anchor_val <= bounds[bi + 1]), 0)
+        choices = [bi for bi in range(len(bounds) - 1) if bi != ai]
+        if not choices:
+            return anchor_val
+        a, b = (lambda ci: (bounds[ci], bounds[ci + 1]))(random.choice(choices))
+        if not (np.isfinite(a) and np.isfinite(b)) or b <= a:
+            return anchor_val
+        if isCat[f]:
+            valid = [v for v in range(max(0, int(np.ceil(a))), min(classPossibilities[f], int(np.floor(b)) + 1))
+                     if v != anchor_val]
+            return random.choice(valid) if valid else anchor_val
+        mid, half = 0.5 * (a + b), 0.5 * (b - a)     # aim for the interval interior (stay confident)
+        return float(np.clip(mid + np.random.uniform(-0.6, 0.6) * half, a, b))
+
+    # 2. plausibility threshold from the real data (same as the geometric generator)
+    if len(original_pool) > 1:
+        od = _compute_dist_matrix(original_pool, original_pool, n_features, isCat, feature_ranges)
+        np.fill_diagonal(od, np.inf)
+        plausibility_threshold = np.percentile(od.min(axis=1), plausibility_percentile)
+    else:
+        plausibility_threshold = np.inf
+
+    # 3. generate cell-crossing candidates anchored on real seeds
+    candidates = []
+    for _ in range(pool_size):
+        anchor = original_pool[np.random.randint(len(original_pool))].copy()
+        chosen = random.sample(cross_feats, random.randint(1, min(max_cross_feats, len(cross_feats))))
+        for f in chosen:
+            anchor[f] = cross_value(anchor[f], f)
+        if not np.any(np.isnan(anchor)):
+            candidates.append(anchor)
+    if not candidates:
+        return []
+    candidates = np.array(candidates)
+
+    dmin = _compute_dist_matrix(candidates, original_pool, n_features, isCat, feature_ranges).min(axis=1)
+    keep = dmin <= plausibility_threshold
+    if not np.any(keep):
+        keep = dmin <= np.median(dmin)
+    candidates = candidates[keep]
+    if len(candidates) == 0:
+        return []
+
+    # 4. greedy (feature, threshold, side) coverage selection
+    covered = set().union(*(point_cover(s) for s in original_pool)) if len(original_pool) else set()
+    cand_cover = [point_cover(c) for c in candidates]
+    selected, used = [], np.zeros(len(candidates), dtype=bool)
+    for _ in range(min(num_desired_samples, len(candidates))):
+        gains = [(-1 if used[i] else len(cand_cover[i] - covered)) for i in range(len(candidates))]
+        bi = int(np.argmax(gains))
+        if gains[bi] <= 0:                     # coverage saturated -> fill with any unused candidate
+            rem = np.where(~used)[0]
+            if len(rem) == 0:
+                break
+            bi = int(rem[0])
+        used[bi] = True
+        selected.append(candidates[bi])
+        covered |= cand_cover[bi]
+    return selected
+
+
+def traverse_explanations_LIME3(sample_set, explainer, model, n_visits_lb, n_visits_ub, upper_limit,
+                                n_f_e, args2, model_name, X_train=None, y_train=None,
+                                recycle_bisection=True, use_diverse=True, n_middle=10,
+                                bisect_refine=True, lime_num_samples=1000, diverse_method='manifold',
+                                budget_scale=True, overhead_frac=0.4, div_frac=0.15, div_cap=10,
+                                densify=0, feature_select='explanation', use_threshold=True,
+                                use_explanation=True):
+    """LIME analog of traverse_explanations_SHAP3. Same three-phase scaffold, LIME throughout the
+    explanation-driven parts:
+      Phase 1  diverse generation (explanation-free, identical to SHAP3; ablatable via use_diverse)
+      Phase 2  LIME boundary search  (generate_lime_informed_samples: snap top-k to bin edge + bisect)
+      Phase 3  LIME-guided traversal (explain each popped sample, snap its top-k features to their
+               bin edges, then step +/- epsilon)  -- mirrors traverse_explanations_LIME's mechanism.
+
+    `explainer` must be a lime.lime_tabular.LimeTabularExplainer. LIME's internal queries are NOT
+    charged (the explanation is bundled with the label, as in traverse_explanations_LIME); only
+    Phase-2 bisection intermediates count, matching SHAP3's overhead accounting.
+    """
+    classes, features, n_classes, n_features, isCat, epsilon_set, canNegative, classPossibilities, dataset_name, feature_ranges = args2
+    print("Dataset name in traverse_explanations_LIME3:", dataset_name)
+    if isinstance(n_visits_lb, int):
+        n_v_lb = np.ones(len(classes)) * n_visits_lb
+        n_v_ub = np.ones(len(classes)) * n_visits_ub
+    n_visits = np.zeros(len(classes))
+    samples = sample_set.copy()
+    init_preds = model.predict_proba(samples)
+    preds = []
+    visited_samples = []
+    for i in init_preds:
+        preds.append(np.argmax(i))
+    for i in samples:
+        visited_samples += [i]
+    query = 1
+    isPassed = [n_visits[i] >= n_v_lb[i] for i in range(len(n_v_lb))]
+
+    # Budget-aware sizing: at small Q the Phase-1 diverse + Phase-2 boundary overhead (~n_middle*8
+    # bisection queries) can eat the whole budget and starve Phase-3 -> a fidelity dip at small Q
+    # (the boundary bisection is the dominant cost, ~80 queries; diverse is ~n_div). Cap that
+    # overhead to ~overhead_frac of the budget; both clamp back to full size at large Q.
+    if budget_scale:
+        # div_frac controls the Phase-1 diverse budget (fraction of Q, capped at div_cap);
+        # div_frac=0 -> no diverse. (Was hardcoded 0.15 / cap 10; now tunable.)
+        n_div_eff = int(np.clip(upper_limit * div_frac, 0, div_cap))
+        n_mid_eff = int(np.clip(upper_limit * overhead_frac / 8.0, 2, n_middle))
+    else:
+        n_div_eff, n_mid_eff = div_cap, n_middle
+
+    # Phase 1: diverse generation. 'manifold' = geometric (explanation-free, same as SHAP3);
+    # 'lime_threshold' = LIME decision-cell coverage (uses the free seed explanations).
+    selected_diverse_samples = []
+    if use_diverse:
+        if diverse_method == 'lime_threshold':
+            diverse_samples = create_lime_threshold_diverse_samples(
+                samples, explainer, model, features, isCat, classPossibilities, feature_ranges,
+                num_desired_samples=n_div_eff, lime_num_samples=lime_num_samples)
+        else:
+            diverse_samples = create_manifold_aware_diverse_samples_corrected(
+                samples, classPossibilities, feature_ranges, isCat, num_desired_samples=n_div_eff)
+        while len(diverse_samples) > 0:
+            current_diverse = diverse_samples.pop(0)
+            query += 1
+            if model.predict_proba([current_diverse]).max() > 0.8:
+                selected_diverse_samples += [current_diverse]
+
+    # Phase 2: LIME boundary search (bin-edge threshold, then optional bisection refine)
+    bisection_mids = [] if recycle_bisection else None
+    middle_samples, overhead_queries = generate_lime_informed_samples(
+        model, samples, explainer, isCat, feature_ranges, features,
+        num_new_samples=n_mid_eff, top_k=5, mid_log=bisection_mids,
+        bisect_refine=bisect_refine, lime_num_samples=lime_num_samples, densify=densify,
+        feature_select=feature_select, use_threshold=use_threshold,
+        use_explanation=use_explanation)
+    samples += middle_samples
+    samples += selected_diverse_samples
+
+    # Recycle bisection intermediates as free boundary-labelled training data (not eps-perturbed)
+    if recycle_bisection and bisection_mids:
+        for ms, mlab in bisection_mids:
+            if n_visits[int(mlab)] < n_v_ub[int(mlab)]:
+                n_visits[int(mlab)] += 1
+                preds += [classes[int(mlab)]]
+                visited_samples += [np.asarray(ms, dtype=float)]
+
+    # Phase 3: LIME-guided traversal -- snap each top-k feature to its bin edge, then +/- epsilon
+    upper_limit = upper_limit - overhead_queries
+    while len(samples) != 0 and not all(isPassed) and not query > upper_limit:
+        query += 1
+        curr = samples.pop(0)
+        class_index = int(np.argmax(model.predict_proba([curr])))
+        if query % 100 == 0:
+            print(int(query / 100), end=" ")
+        if n_visits[class_index] < n_v_ub[class_index]:
+            n_visits[class_index] += 1
+            preds += [classes[class_index]]
+            visited_samples += [curr]
+            if use_explanation:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    exp = explainer.explain_instance(curr, model.predict_proba,
+                                                     num_features=n_features, num_samples=lime_num_samples)
+                key = list(exp.as_map().keys())[0]
+                exp_parsed = explanation_parser(exp.as_map(), exp.as_list(key), key, features)  # sorted by |w|
+            else:
+                exp_parsed = grid_rules(explainer, curr, features, isCat)   # self-computed grid only
+            k = min(n_f_e, n_features)
+            # E2/H1: 'explanation' = top-k by |weight|; 'random' = random k features (still snapped
+            # to THEIR bin edges below), isolating feature choice from the threshold channel.
+            top = (exp_parsed[:k] if feature_select == 'explanation'
+                   else random.sample(exp_parsed, min(k, len(exp_parsed))))
+            idxs = [_feature_index(row[0], features) for row in top]
+            # two single-feature children per top feature: high-edge (+eps) and low-edge (-eps)
+            cpys = [np.copy(curr) for _ in range(2 * k)]
+            for i in range(k):
+                fi = idxs[i]
+                if fi is None:
+                    continue
+                low, high = top[i][1], top[i][2]
+                base_hi = float(high) if high != -1 else float(curr[fi])
+                base_lo = float(low) if low != -1 else float(curr[fi])
+                if not use_threshold:                      # E3a: ignore the bin edge, step from current value
+                    base_hi = base_lo = float(curr[fi])
+                cpys[2 * i][fi] = base_hi + epsilon_set[fi]
+                cpys[2 * i + 1][fi] = base_lo - epsilon_set[fi]
+            for i in range(2 * k):
+                fi = idxs[i // 2]
+                if fi is None:
+                    continue
+                if isCat[fi]:      # keep categoricals in [0, classPossibilities)
+                    if cpys[i][fi] < 0 or cpys[i][fi] >= classPossibilities[fi]:
+                        continue
+                else:              # clip continuous to the observed range
+                    lo, hi = feature_ranges[fi]
+                    if np.isfinite(lo) and np.isfinite(hi) and hi > lo:
+                        cpys[i][fi] = float(np.clip(cpys[i][fi], lo, hi))
+                dup = (any((cpys[i] == x).all() for x in visited_samples) or
+                       any((cpys[i] == x).all() for x in samples))
+                if not dup:
+                    samples += [cpys[i]]
+    return visited_samples, preds, query + overhead_queries
+
+
+#   version 4: SHAP-guided counterfactual flip + confident-descendant expansion for boundary search.
+#   Replaces SHAP3's midpoint-bisection Phase 2 (generate_shap_informed_samples_new) with a
+#   principled, axis-aligned boundary search (see DEVELOPMENT_NOTES.md #12). Phase 1 (diverse
+#   seeds) and Phase 3 (ε-perturbation traversal) are behaviourally identical to SHAP3, so an
+#   A/B against SHAP3 isolates the effect of the counterfactual Phase 2.
+def traverse_explanations_SHAP4(sample_set, explainer, model, n_visits_lb, n_visits_ub, upper_limit, n_f_e, args2,
+                               model_name, X_train=None, y_train=None, explanation_type='vanilla', num_exp=5):
+    classes, features, n_classes, n_features, isCat, epsilon_set, canNegative, classPossibilities, dataset_name, feature_ranges = args2
+    print("Dataset name in traverse_explanations_SHAP4:", dataset_name)
+    if isinstance(n_visits_lb, int):
+        n_v_lb = np.ones(len(classes)) * n_visits_lb
+        n_v_ub = np.ones(len(classes)) * n_visits_ub
+    n_visits = np.zeros(len(classes))
+    samples = sample_set.copy()
+    seed_samples = list(sample_set)  # preserve original seed for cross-class pairing
+    init_preds = model.predict_proba(samples)
+    preds = []
+    visited_samples = []
+    for i in init_preds:
+        preds.append(np.argmax(i))
+    for i in samples:
+        visited_samples += [i]
+    query = 1
+    isPassed = [n_visits[i] >= n_v_lb[i] for i in range(len(n_v_lb))]
+
+    # --- Phase 1: diverse, target-model-confident seed samples (identical to SHAP3) ---
+    diverse_samples = create_manifold_aware_diverse_samples_corrected(samples, classPossibilities, feature_ranges, isCat)
+    selected_diverse_samples = []
+    while len(diverse_samples) > 0:
+        current_diverse = diverse_samples.pop(0)
+        query += 1
+        if model.predict_proba([current_diverse]).max() > 0.8:  # only add confidently-classified samples
+            selected_diverse_samples += [current_diverse]
+
+    # --- Phase 2 (SHAP4): SHAP-guided counterfactual flip + confident descendants ---
+    # Forms cross-class pairs from the seed set, walks each to the decision boundary by flipping the
+    # single highest-SHAP feature at a time, then ε-walks confidently-labelled descendants away from
+    # the boundary. For tree targets (dt/rdf) the straddle pair itself is injected directly as
+    # training data (axis-aligned split revelation) and is NOT ε-perturbed (avoids boundary noise).
+    # Phase 2 queries every flip/rejection sample against the target, so all are
+    # target-labelled. Recycling them into the training set is what makes the
+    # counterfactual phase pay for itself instead of just burning query budget
+    # (without this, SHAP4 lost to SHAP3; with it, it is on par — see DEV NOTES #12).
+    cf_query_log = []
+    queue_samples, direct_samples, direct_labels, cf_overhead = generate_counterfactual_confident_samples(
+        model, explainer, seed_samples, preds,
+        isCat, classPossibilities, epsilon_set, model_name,
+        num_cross_pairs=5, num_per_side=3, confidence_threshold=0.8,
+        canNegative=canNegative, query_log=cf_query_log,
+    )
+    overhead_queries = cf_overhead
+    samples += queue_samples
+    samples += selected_diverse_samples
+
+    # Recycle the Phase-2 queried samples as clean (target-labelled) training data.
+    for qs, qlab in cf_query_log:
+        if n_visits[int(qlab)] < n_v_ub[int(qlab)]:
+            n_visits[int(qlab)] += 1
+            preds += [classes[int(qlab)]]
+            visited_samples += [np.asarray(qs, dtype=float)]
+
+    # Straddle pairs (tree targets only) go straight into training with their known
+    # labels from the flip, bypassing the ε-perturbation loop.
+    for ds, dl in zip(direct_samples, direct_labels):
+        if n_visits[int(dl)] < n_v_ub[int(dl)]:
+            n_visits[int(dl)] += 1
+            preds += [classes[int(dl)]]
+            visited_samples += [ds]
+
+    upper_limit = upper_limit - overhead_queries  # reserve Phase-2 overhead out of the Phase-3 budget
+    # --- Phase 3: ε-perturbation traversal (identical to SHAP3's active branch) ---
+    while len(samples) != 0 and not all(isPassed) and not query > upper_limit:
+        query += 1
+        curr = samples.pop(0)
+        pred = model.predict_proba([curr])
+        class_index = np.argmax(pred)
+        if query % 100 == 0:
+            print(int(query / 100), end=" ")
+        if n_visits[class_index] < n_v_ub[class_index]:
+            n_visits[class_index] += 1
+            preds += [classes[class_index]]
+            visited_samples += [curr]
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore")
+                if model_name == 'dt' or model_name == 'rdf':
+                    exp = explainer.shap_values(curr)[:, class_index]
+                else:
+                    exp = explainer.shap_values(curr)
+            k = min(np.count_nonzero(exp), n_f_e)
+            sort_index = np.flip(np.argsort(abs(exp)))[:k]
+            cpys = []
+            for i in range(2):
+                cpys += [np.copy(curr)]
+            for i in range(k):
+                num = random.random()
+                mult = random.randint(1, 1)
+                tmp0 = cpys[0][sort_index[i]] + epsilon_set[sort_index[i]] * mult
+                tmp1 = cpys[0][sort_index[i]] - epsilon_set[sort_index[i]] * mult
+                if not isCat[sort_index[i]]:
+                    cond1 = True
+                else:
+                    cond1 = (tmp0 < classPossibilities[sort_index[i]])
+                cond2 = (tmp1 >= 0)
+                if num < 0.8:
+                    if cond1:
+                        cpys[0][sort_index[i]] += epsilon_set[sort_index[i]] * mult
+                        if cond2:
+                            cpys[1][sort_index[i]] -= epsilon_set[sort_index[i]] * mult
+                    else:
+                        cpys[0][sort_index[i]] -= epsilon_set[sort_index[i]] * mult
+                        if cond1:
+                            cpys[1][sort_index[i]] += epsilon_set[sort_index[i]] * mult
+                else:
+                    if cond1:
+                        cpys[1][sort_index[i]] += epsilon_set[sort_index[i]] * mult
+                        if cond2:
+                            cpys[0][sort_index[i]] -= epsilon_set[sort_index[i]] * mult
+                    else:
+                        cpys[1][sort_index[i]] -= epsilon_set[sort_index[i]] * mult
+                        if cond1:
+                            cpys[0][sort_index[i]] += epsilon_set[sort_index[i]] * mult
+            for i in range(2):
+                tmp = (any((cpys[i] == x).all() for x in visited_samples) or
+                       (any((cpys[i] == x).all() for x in samples)))
+                if not tmp:
+                    samples += [cpys[i]]
+    return visited_samples, preds, query + overhead_queries
+
+
+def densify_boundary_pairs(model, explainer, seeds, preds, args2, model_name,
+                           max_queries=300, n_pairs=12, n_dense=8, query_log=None, use_shap=True):
+    """
+    DualCF-style boundary densification (Phase 2 for SHAP4b).
+
+    Locates single-axis decision boundaries with the SHAP-guided flip, then densely samples BOTH
+    sides of each boundary — varying the NON-boundary features by small perturbations while pinning
+    the boundary feature to each side's value — so the *bulk* of the training set concentrates right
+    at the target's decision boundaries. For a tree surrogate this pulls the impurity-optimal split
+    onto the true threshold (rather than somewhere in the diffuse margin Autolycus leaves).
+
+    Unlike `expand_confident_descendants` (which walks AWAY from the boundary), this stays AT it and
+    emits paired samples on both sides. Every sample is target-labelled. Continuous boundary features
+    are localised by deep bisection first; categorical features use the flip's exact category boundary.
+
+    Returns (samples, labels, queries). The SHAP-flip walk samples are logged to `query_log`
+    (recycled by the caller); the densified bracket/bisection samples are returned directly.
+    """
+    classes, features, n_classes, n_features, isCat, epsilon_set, canNegative, classPossibilities, dataset_name, feature_ranges = args2
+    out_samples, out_labels = [], []
+    recovered = {}  # feature_idx -> list of bisection-localised continuous split thresholds (for snapping)
+    queries = 0
+
+    cross_pairs = [(seeds[i], seeds[j]) for i in range(len(seeds)) for j in range(len(seeds)) if preds[i] != preds[j]]
+    random.shuffle(cross_pairs)
+    cross_pairs = cross_pairs[:n_pairs]
+
+    def q_label(x):
+        # query + label a densified candidate (counted here, NOT in query_log, to avoid double-add)
+        nonlocal queries
+        queries += 1
+        return int(np.argmax(model.predict_proba([np.asarray(x, dtype=float)])[0]))
+
+    for s_a, s_b in cross_pairs:
+        if queries >= max_queries:
+            break
+        pre, post, q1 = shap_guided_counterfactual_flip(model, explainer, s_a, s_b, model_name, query_log=query_log, use_shap=use_shap)
+        queries += q1
+        diff = [i for i in range(n_features) if pre[i] != post[i]]
+        if len(diff) != 1:
+            continue  # only use clean single-axis straddle pairs
+        f = diff[0]
+        lo_val, hi_val = float(pre[f]), float(post[f])
+
+        # Continuous boundary: bisect along f (other features held at pre) to pin the threshold.
+        if not isCat[f]:
+            cls_pre = q_label(pre)
+            a, b = lo_val, hi_val
+            for _ in range(6):
+                if queries >= max_queries:
+                    break
+                mid = pre.copy(); mid[f] = (a + b) / 2.0
+                cls_mid = q_label(mid)
+                out_samples.append(mid.copy()); out_labels.append(cls_mid)  # mids sit near the boundary
+                if cls_mid == cls_pre:
+                    a = (a + b) / 2.0
+                else:
+                    b = (a + b) / 2.0
+            lo_val, hi_val = a, b  # tight bracket around the localised threshold
+            recovered.setdefault(f, []).append((a + b) / 2.0)  # the recovered true split threshold f*
+
+        # Densify: siblings differing only in feature f (lo vs hi side), with small perturbations on
+        # a couple of OTHER features so many points pile up on both sides of this one boundary.
+        others = [i for i in range(n_features) if i != f]
+        for _ in range(n_dense):
+            if queries >= max_queries:
+                break
+            base = pre.copy()
+            for i in random.sample(others, min(2, len(others))):
+                if isCat[i]:
+                    maxc = int(classPossibilities[i])
+                    if maxc > 1:
+                        base[i] = float(random.randrange(maxc))
+                else:
+                    lo, hi = feature_ranges[i]
+                    base[i] = float(np.clip(base[i] + np.random.uniform(-1, 1) * epsilon_set[i], lo, hi))
+            ca = base.copy(); ca[f] = lo_val
+            cb = base.copy(); cb[f] = hi_val
+            out_samples.append(ca); out_labels.append(q_label(ca))
+            out_samples.append(cb); out_labels.append(q_label(cb))
+
+    print(f"[densify] {len(cross_pairs)} pairs -> {len(out_samples)} boundary samples, {queries} queries")
+    return out_samples, out_labels, queries, recovered
+
+
+#   version 4b: boundary DENSIFICATION. Same Phase 1 (diverse) and Phase 3 (ε-perturbation) as
+#   SHAP4, but Phase 2 concentrates the training distribution AT the decision boundaries
+#   (DualCF-style dense straddling pairs) instead of sprinkling a few boundary points. The bet:
+#   a tree surrogate's splits snap to the true thresholds when most training data brackets them.
+def traverse_explanations_SHAP4b(sample_set, explainer, model, n_visits_lb, n_visits_ub, upper_limit, n_f_e, args2,
+                                 model_name, X_train=None, y_train=None, explanation_type='vanilla', num_exp=5,
+                                 use_diverse=True, densify_n_pairs=12, return_boundary_mask=False,
+                                 return_thresholds=False, skip_traversal=False,
+                                 densify_cap_frac=None, use_shap_flip=True, use_shap_traverse=True):
+    classes, features, n_classes, n_features, isCat, epsilon_set, canNegative, classPossibilities, dataset_name, feature_ranges = args2
+    print("Dataset name in traverse_explanations_SHAP4b:", dataset_name)
+    if isinstance(n_visits_lb, int):
+        n_v_lb = np.ones(len(classes)) * n_visits_lb
+        n_v_ub = np.ones(len(classes)) * n_visits_ub
+    n_visits = np.zeros(len(classes))
+    samples = sample_set.copy()
+    seed_samples = list(sample_set)
+    init_preds = model.predict_proba(samples)
+    preds = []
+    visited_samples = []
+    for i in init_preds:
+        preds.append(np.argmax(i))
+    for i in samples:
+        visited_samples += [i]
+    is_boundary = [False] * len(visited_samples)  # True for densified boundary samples (for up-weighting)
+    query = 1
+    isPassed = [n_visits[i] >= n_v_lb[i] for i in range(len(n_v_lb))]
+
+    # --- Phase 1: diverse, target-model-confident seed samples. Skipped when use_diverse=False
+    #     so the query budget can be reallocated to boundary search (tree-model experiment). ---
+    selected_diverse_samples = []
+    if use_diverse:
+        diverse_samples = create_manifold_aware_diverse_samples_corrected(samples, classPossibilities, feature_ranges, isCat)
+        while len(diverse_samples) > 0:
+            current_diverse = diverse_samples.pop(0)
+            query += 1
+            if model.predict_proba([current_diverse]).max() > 0.8:
+                selected_diverse_samples += [current_diverse]
+
+    # --- Phase 2: boundary densification (replaces SHAP4's flip+descendants).
+    #     densify_n_pairs=0 disables it entirely -> scaffold control (Phase 1 + Phase 3 only).
+    #     When Phase 1 is skipped, reallocate that budget to the boundary search (larger cap). ---
+    cf_query_log = []
+    _frac = densify_cap_frac if densify_cap_frac is not None else (0.85 if not use_diverse else 0.7)
+    densify_cap = min(400, int(_frac * upper_limit))
+    dense_samples, dense_labels, dense_q, recovered_thresholds = densify_boundary_pairs(
+        model, explainer, seed_samples, preds, args2, model_name,
+        max_queries=densify_cap, n_pairs=densify_n_pairs, n_dense=8, query_log=cf_query_log, use_shap=use_shap_flip,
+    )
+    overhead_queries = dense_q
+
+    # Densified boundary samples -> training data directly (target-labelled).
+    for s, lab in zip(dense_samples, dense_labels):
+        if n_visits[int(lab)] < n_v_ub[int(lab)]:
+            n_visits[int(lab)] += 1
+            preds += [classes[int(lab)]]
+            visited_samples += [np.asarray(s, dtype=float)]
+            is_boundary.append(True)
+    # Recycle the SHAP-flip walk samples too (also target-labelled, also near boundaries).
+    for qs, qlab in cf_query_log:
+        if n_visits[int(qlab)] < n_v_ub[int(qlab)]:
+            n_visits[int(qlab)] += 1
+            preds += [classes[int(qlab)]]
+            visited_samples += [np.asarray(qs, dtype=float)]
+            is_boundary.append(True)
+    samples += selected_diverse_samples
+
+    upper_limit = upper_limit - overhead_queries
+    # --- Phase 3: ε-perturbation traversal (identical to SHAP4). Skipped when skip_traversal=True
+    #     (densification-only variant: tests whether SHAP-guided densification can replace the
+    #     Autolycus-style traversal). use_shap=False -> random feature selection (no SHAP query). ---
+    while not skip_traversal and len(samples) != 0 and not all(isPassed) and not query > upper_limit:
+        query += 1
+        curr = samples.pop(0)
+        pred = model.predict_proba([curr])
+        class_index = np.argmax(pred)
+        if query % 100 == 0:
+            print(int(query / 100), end=" ")
+        if n_visits[class_index] < n_v_ub[class_index]:
+            n_visits[class_index] += 1
+            preds += [classes[class_index]]
+            visited_samples += [curr]
+            is_boundary.append(False)
+            if use_shap_traverse:
+                with warnings.catch_warnings():
+                    warnings.filterwarnings("ignore")
+                    if model_name == 'dt' or model_name == 'rdf':
+                        exp = explainer.shap_values(curr)[:, class_index]
+                    else:
+                        exp = explainer.shap_values(curr)
+                k = min(np.count_nonzero(exp), n_f_e)
+                sort_index = np.flip(np.argsort(abs(exp)))[:k]
+            else:
+                k = min(n_f_e, n_features)
+                sort_index = np.array(random.sample(range(n_features), k))
+            cpys = []
+            for i in range(2):
+                cpys += [np.copy(curr)]
+            for i in range(k):
+                num = random.random()
+                mult = random.randint(1, 1)
+                tmp0 = cpys[0][sort_index[i]] + epsilon_set[sort_index[i]] * mult
+                tmp1 = cpys[0][sort_index[i]] - epsilon_set[sort_index[i]] * mult
+                if not isCat[sort_index[i]]:
+                    cond1 = True
+                else:
+                    cond1 = (tmp0 < classPossibilities[sort_index[i]])
+                cond2 = (tmp1 >= 0)
+                if num < 0.8:
+                    if cond1:
+                        cpys[0][sort_index[i]] += epsilon_set[sort_index[i]] * mult
+                        if cond2:
+                            cpys[1][sort_index[i]] -= epsilon_set[sort_index[i]] * mult
+                    else:
+                        cpys[0][sort_index[i]] -= epsilon_set[sort_index[i]] * mult
+                        if cond1:
+                            cpys[1][sort_index[i]] += epsilon_set[sort_index[i]] * mult
+                else:
+                    if cond1:
+                        cpys[1][sort_index[i]] += epsilon_set[sort_index[i]] * mult
+                        if cond2:
+                            cpys[0][sort_index[i]] -= epsilon_set[sort_index[i]] * mult
+                    else:
+                        cpys[1][sort_index[i]] -= epsilon_set[sort_index[i]] * mult
+                        if cond1:
+                            cpys[0][sort_index[i]] += epsilon_set[sort_index[i]] * mult
+            for i in range(2):
+                tmp = (any((cpys[i] == x).all() for x in visited_samples) or
+                       (any((cpys[i] == x).all() for x in samples)))
+                if not tmp:
+                    samples += [cpys[i]]
+    if return_thresholds:
+        return visited_samples, preds, query + overhead_queries, recovered_thresholds
+    if return_boundary_mask:
+        return visited_samples, preds, query + overhead_queries, is_boundary
+    return visited_samples, preds, query + overhead_queries
+
 
 def decode_pred(target, v_preds):
     v_pred_dec = np.zeros(len(v_preds))
@@ -1765,14 +3023,16 @@ def argmaxing(accs, rss, args4):  # Select the most similar model up until given
     return argmax_acc, argmax_sim
 
 #todo add feature ranges for continuous features in the datasets, and use them to ensure the generated diverse samples are within valid ranges
-def load_dataset(which_dataset):
+def load_dataset(which_dataset, seed=None):
+    _rs = 42 if seed is None else seed  # split random_state; override to sample different train/test splits
     if which_dataset == 0:
         #iris = sklearn.datasets.load_iris()
         #X = iris.data
         #y = iris.target
         X, y = shap.datasets.iris()
         X_train, X_test, y_train, y_test = sklearn.model_selection.train_test_split(X, y,
-                                                                                    test_size=0.25)  #, random_state=42)
+                                                                                    test_size=0.25,
+                                                                                    random_state=_rs)
         X_test_t, X_test_s, y_test_t, y_test_s = sklearn.model_selection.train_test_split(X_test, y_test,
                                                                                           train_size=0.60,
                                                                                           random_state=21)
@@ -1808,7 +3068,7 @@ def load_dataset(which_dataset):
         y = crop['label'].to_numpy()
 
         X_train, X_test, y_train, y_test = sklearn.model_selection.train_test_split(X, y, test_size=0.25, stratify=y,
-                                                                                    random_state=42)
+                                                                                    random_state=_rs)
         X_test_t, X_test_s, y_test_t, y_test_s = sklearn.model_selection.train_test_split(X_test, y_test,
                                                                                           train_size=0.60,
                                                                                           stratify=y_test,
@@ -1834,7 +3094,7 @@ def load_dataset(which_dataset):
         y = y.astype(int)
 
         X_display, y_display = shap.datasets.adult(display=True)
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=_rs)
         X_test_t, X_test_s, y_test_t, y_test_s = train_test_split(X_test, y_test, train_size=0.60, random_state=21)
 
         classes = [0, 1]
@@ -1852,10 +3112,12 @@ def load_dataset(which_dataset):
         X = pd.DataFrame(bc.data)
         y = bc.target
         X_train, X_test, y_train, y_test = sklearn.model_selection.train_test_split(X, y, test_size=0.25,
-                                                                                    stratify=bc.target)
+                                                                                    stratify=bc.target,
+                                                                                    random_state=_rs)
         X_test_t, X_test_s, y_test_t, y_test_s = sklearn.model_selection.train_test_split(X_test, y_test,
                                                                                           train_size=0.60,
-                                                                                          stratify=y_test)
+                                                                                          stratify=y_test,
+                                                                                          random_state=21)
         features = bc.feature_names
         classes = [0, 1]
         n_features = len(features)
@@ -1887,7 +3149,7 @@ def load_dataset(which_dataset):
         y = nursery['final evaluation'].to_numpy()
 
         X_train, X_test, y_train, y_test = sklearn.model_selection.train_test_split(X, y, test_size=0.25,
-                                                                                    random_state=42)
+                                                                                    random_state=_rs)
         X_test_t, X_test_s, y_test_t, y_test_s = sklearn.model_selection.train_test_split(X_test, y_test,
                                                                                           train_size=0.60,
                                                                                           random_state=21)
@@ -1916,7 +3178,7 @@ def load_dataset(which_dataset):
         y = mushroom['p'].to_numpy()
 
         X_train, X_test, y_train, y_test = sklearn.model_selection.train_test_split(X, y, test_size=0.25,
-                                                                                    random_state=42)
+                                                                                    random_state=_rs)
         X_test_t, X_test_s, y_test_t, y_test_s = sklearn.model_selection.train_test_split(X_test, y_test,
                                                                                           train_size=0.60,
                                                                                           random_state=21)
@@ -1954,7 +3216,7 @@ def load_dataset(which_dataset):
 
         # Train/test split
         X_train, X_test, y_train, y_test = sklearn.model_selection.train_test_split(X, y, test_size=0.25, stratify=y,
-                                                                                    random_state=42)
+                                                                                    random_state=_rs)
         X_test_t, X_test_s, y_test_t, y_test_s = sklearn.model_selection.train_test_split(X_test, y_test,
                                                                                           train_size=0.60,
                                                                                           stratify=y_test,
@@ -1980,12 +3242,13 @@ def load_dataset(which_dataset):
 
         # Split into training and test set
     
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state=42, stratify=y)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state=_rs, stratify=y)
         X_test_t, X_test_s, y_test_t, y_test_s = sklearn.model_selection.train_test_split(X_test, y_test,
                                                                                             train_size=0.60,
                                                                                             stratify=y_test,
                                                                                             random_state=21)
         features = [f'pixel_{i}' for i in range(X.shape[1])]
+        X.columns = features
         classes = sorted(list(set(y)))
         n_features = len(features)
         n_classes = len(classes)
@@ -1995,7 +3258,37 @@ def load_dataset(which_dataset):
         epsilon_set = [16] * n_features  # assuming pixel values range from 0 to 16
         dataset_name = 'digits'
         feature_ranges = [(X[features[i]].min(), X[features[i]].max()) for i in range(n_features)]
-        
+
+    elif which_dataset == 8:
+        w = sklearn.datasets.load_wine()
+        X = pd.DataFrame(w.data, columns=[f'f{i}' for i in range(w.data.shape[1])])
+        y = w.target
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=_rs, stratify=y)
+        X_test_t, X_test_s, y_test_t, y_test_s = train_test_split(X_test, y_test, train_size=0.60,
+                                                                  random_state=21, stratify=y_test)
+        features = list(X.columns); classes = sorted(set(int(v) for v in y))
+        n_features = len(features); n_classes = len(classes)
+        isCategorical = [False] * n_features; canNegative = [False] * n_features
+        epsilon_set = list(X.std()); dataset_name = 'wine'
+        feature_ranges = [(X[features[i]].min(), X[features[i]].max()) for i in range(n_features)]
+
+    elif which_dataset in (9, 10, 11, 12):
+        _map = {9: ('pendigits', 'pendigits'), 10: ('letter', 'letter'),
+                11: ('waveform-5000', 'waveform'), 12: ('segment', 'segment')}  # OpenML name, display name
+        _fetch, _disp = _map[which_dataset]
+        d = sklearn.datasets.fetch_openml(_fetch, version=1, as_frame=True)
+        X = d.data.reset_index(drop=True).astype(float)
+        X.columns = [f'f{i}' for i in range(X.shape[1])]
+        y = LabelEncoder().fit_transform(d.target)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=_rs, stratify=y)
+        X_test_t, X_test_s, y_test_t, y_test_s = train_test_split(X_test, y_test, train_size=0.60,
+                                                                  random_state=21, stratify=y_test)
+        features = list(X.columns); classes = sorted(set(int(v) for v in y))
+        n_features = len(features); n_classes = len(classes)
+        isCategorical = [False] * n_features; canNegative = [False] * n_features
+        epsilon_set = list(X.std()); dataset_name = _disp
+        feature_ranges = [(X[features[i]].min(), X[features[i]].max()) for i in range(n_features)]
+
     else:
         print('there is no such dataset')
 
@@ -2445,7 +3738,6 @@ def run_attack_auto(wd, wm, et, hms, sss, nfe, ql, so):  # make sure the types a
     save_option = so if isinstance(so, bool) else (
         lambda: (_ for _ in ()).throw(TypeError("Only booleans are allowed")))()
 
-    top_exp = 5  # Number of top explanations to consider in SHAP
     print('DATASET', which_dataset, which_model)
     ## Unpack args
     args1, args2 = load_dataset(which_dataset)
@@ -2510,8 +3802,7 @@ def run_attack_auto(wd, wm, et, hms, sss, nfe, ql, so):  # make sure the types a
                             v_samples_np, v_pred_dec, n_query = traverse_explanations_SHAP3(samples_mega[i][g],
                                                                                            t_explainer, t_model, lb, ub,
                                                                                            query_limit[h], f, args2,
-                                                                                           model_name, top_exp, X_train,
-                                                                                           y_train)
+                                                                                           model_name, X_train, y_train)
                         else:
                             print('No valid explanation tool selected')
                             break
@@ -2546,9 +3837,16 @@ def run_attack_auto(wd, wm, et, hms, sss, nfe, ql, so):  # make sure the types a
                                 s_model.fit(v_samples_np, v_pred_dec)
                                 sim += [rtest_sim(s_model, t_model, X_test_t.values)]
                                 s_accuracy += [accuracy_score(y_test_t, s_model.predict(X_test_t.values))]
-                        tmp = np.argmax(sim) if prioritizeSim else np.argmax(s_accuracy)
-                        sims += [round(sim[tmp], 4)]
-                        real_accuracy += [round(s_accuracy[tmp], 4)]
+                        # MEAN over refits, not max (max = test-set selection bias; see the
+                        # _build_surrogate_and_eval fix in run_attack_auto_compare). MLP selects
+                        # across architectures, not repeats -> left as argmax.
+                        if model_name == 'mlp':
+                            tmp = np.argmax(sim) if prioritizeSim else np.argmax(s_accuracy)
+                            sims += [round(sim[tmp], 4)]
+                            real_accuracy += [round(s_accuracy[tmp], 4)]
+                        else:
+                            sims += [round(float(np.mean(sim)), 4)]
+                            real_accuracy += [round(float(np.mean(s_accuracy)), 4)]
                         if sim[tmp] == 1:
                             max_sim[i] = True
                         print('Sample set', i, ', Top similarity:', round(sim[tmp], 4))
@@ -2569,12 +3867,18 @@ def run_attack_auto(wd, wm, et, hms, sss, nfe, ql, so):  # make sure the types a
     return accuracies, rtest_sims, samples_mega, other_args
 
 
-def run_attack_auto_compare(wd, wm, et, hms, sss, nfe, ql, so):
+def run_attack_auto_compare(wd, wm, et, hms, sss, nfe, ql, so, run_shap4=False, main_variant='shap3',
+                            seed=None, div_frac=0.15, div_cap=10):
     """Same as run_attack_auto but runs both traverse_explanations_SHAP3 (main) and
     traverse_explanations_SHAP (baseline) on the same sample sets and prints a comparison.
     Returns (accuracies, rtest_sims, accuracies_baseline, rtest_sims_baseline, samples_mega, other_args)
     where the first two correspond to SHAP3 and the second two to the SHAP baseline.
+    `seed` (optional): seed random + numpy at entry so the sample sets and traversals are reproducible
+    across runs; main and baseline already share the SAME sample sets (paired).
     """
+    if seed is not None:
+        random.seed(seed)
+        np.random.seed(seed)
     which_dataset = wd if isinstance(wd, int) else (
         lambda: (_ for _ in ()).throw(TypeError("Only integers are allowed")))()
     which_model = wm if isinstance(wm, int) else (
@@ -2602,6 +3906,11 @@ def run_attack_auto_compare(wd, wm, et, hms, sss, nfe, ql, so):
     print('ML Model: ', model_dict.get(which_model))
     print(exp_dict.get(explanation_tool), 'is the explanation tool currently in use\n')
 
+    # main = our method; baseline = Autolycus. LIME path (et=0): LIME3 vs base LIME.
+    # SHAP path (et=1): SHAP3 vs base SHAP.
+    main_label = 'LIME3' if explanation_tool == 0 else 'SHAP3'
+    base_label = 'LIME base' if explanation_tool == 0 else 'SHAP base'
+
     samples_mega = mega_sample_generation(X_test_s.to_numpy(), y_test_s, n_classes, sample_set_sizes, how_many_sets)
 
     # Main method (SHAP3) results
@@ -2610,6 +3919,9 @@ def run_attack_auto_compare(wd, wm, et, hms, sss, nfe, ql, so):
     # Baseline method (SHAP) results
     accuracies_baseline = []
     rtest_sims_baseline = []
+    # SHAP4 (counterfactual-flip) results — only populated when run_shap4=True
+    accuracies_shap4 = []
+    rtest_sims_shap4 = []
     prioritizeSim = True
 
     if model_name == 'nb' or model_name == 'mlp' or model_name == 'lr' or model_name == 'knn':
@@ -2628,6 +3940,8 @@ def run_attack_auto_compare(wd, wm, et, hms, sss, nfe, ql, so):
 
     def _build_surrogate_and_eval(v_samples_np, v_pred_dec):
         """Fit surrogate models on traversed samples and return best sim/accuracy."""
+        if model_name == 'nb':   # MultinomialNB needs non-negative features; +/-eps and bin-edge
+            v_samples_np = np.clip(np.asarray(v_samples_np, dtype=float), 0, None)  # steps can dip <0
         s_accuracy = []
         sim = []
         for k in range(repetition):
@@ -2659,8 +3973,17 @@ def run_attack_auto_compare(wd, wm, et, hms, sss, nfe, ql, so):
                 s_model.fit(v_samples_np, v_pred_dec)
                 sim += [rtest_sim(s_model, t_model, X_test_t.values)]
                 s_accuracy += [accuracy_score(y_test_t, s_model.predict(X_test_t.values))]
-        tmp = np.argmax(sim) if prioritizeSim else np.argmax(s_accuracy)
-        return round(sim[tmp], 4), round(s_accuracy[tmp], 4)
+        # Aggregate the `repetition` refits by MEAN, not max. max(sim) selected the luckiest
+        # refit ON X_test_t and then reported that same value -> test-set selection bias
+        # (winner's curse), inflating dt (reps=100) and rdf (reps=10) the most. Mean is the
+        # unbiased estimate of surrogate fidelity, and variance reduction is what `repetition`
+        # is actually for. lr/nb/knn use reps=1 so mean == the single value (unchanged).
+        # MLP selects across DIFFERENT architectures (not repeats) -> left as argmax; that is a
+        # separate selection concern and perceptron is out of scope for this fix.
+        if model_name == 'mlp':
+            tmp = np.argmax(sim) if prioritizeSim else np.argmax(s_accuracy)
+            return round(sim[tmp], 4), round(s_accuracy[tmp], 4)
+        return round(float(np.mean(sim)), 4), round(float(np.mean(s_accuracy)), 4)
 
     for f in nfe:
         print('Number of top features allowed to be explored (k):', f)
@@ -2668,29 +3991,40 @@ def run_attack_auto_compare(wd, wm, et, hms, sss, nfe, ql, so):
             print('\nNumber of samples per class (n):', sample_set_sizes[g])
             max_sim = [False] * how_many_sets
             max_sim_baseline = [False] * how_many_sets
+            max_sim_shap4 = [False] * how_many_sets
             for h in range(len(lb_set)):
                 lb, ub = lb_set[h], ub_set[h]
                 real_accuracy = []
                 sims = []
                 real_accuracy_baseline = []
                 sims_baseline = []
+                real_accuracy_shap4 = []
+                sims_shap4 = []
                 for i in range(how_many_sets):
-                    # --- Main method: traverse_explanations_SHAP3 ---
+                    # --- Main method: our method (LIME3 if et=0, SHAP3 if et=1) ---
                     if max_sim[i]:
-                        print('Sample set', i, " [SHAP3] Max similarity reached, skipping.")
+                        print('Sample set', i, f" [{main_label}] Max similarity reached, skipping.")
                         sims += [1]
                         real_accuracy += [t_accuracy]
                     else:
                         if explanation_tool == 0:
-                            v_samples_np, v_pred_dec, n_query = traverse_explanations_LIME(samples_mega[i][g],
-                                                                                           t_explainer, t_model, lb, ub,
-                                                                                           query_limit[h], f, args2)
-                        elif explanation_tool == 1:
-                            v_samples_np, v_pred_dec, n_query = traverse_explanations_SHAP3(samples_mega[i][g],
+                            v_samples_np, v_pred_dec, n_query = traverse_explanations_LIME3(samples_mega[i][g],
                                                                                             t_explainer, t_model, lb, ub,
                                                                                             query_limit[h], f, args2,
-                                                                                            model_name, nfe, X_train,
-                                                                                            y_train)
+                                                                                            model_name, X_train, y_train, diverse_method="lime_threshold",
+                                                                                            div_frac=div_frac, div_cap=div_cap)
+                        elif explanation_tool == 1:
+                            # main_variant='best' routes tree targets (dt/rdf) to the boundary-
+                            # densification variant SHAP4b(use_diverse=False); everything else uses SHAP3.
+                            if main_variant == 'best' and model_name in ('dt', 'rdf'):
+                                v_samples_np, v_pred_dec, n_query = traverse_explanations_SHAP4b(
+                                    samples_mega[i][g], t_explainer, t_model, lb, ub,
+                                    query_limit[h], f, args2, model_name, X_train, y_train, use_diverse=False)
+                            else:
+                                v_samples_np, v_pred_dec, n_query = traverse_explanations_SHAP3(samples_mega[i][g],
+                                                                                                t_explainer, t_model, lb, ub,
+                                                                                                query_limit[h], f, args2,
+                                                                                                model_name, X_train, y_train)
                         else:
                             print('No valid explanation tool selected')
                             break
@@ -2699,37 +4033,69 @@ def run_attack_auto_compare(wd, wm, et, hms, sss, nfe, ql, so):
                         real_accuracy += [m_acc]
                         if m_sim == 1:
                             max_sim[i] = True
-                        print(f'[SHAP3]     Sample set {i}, n_queries={len(v_pred_dec)}, Top similarity={m_sim}')
+                        print(f'[{main_label}]     Sample set {i}, n_queries={n_query}, Set Size = {len(v_samples_np)}, Top similarity={m_sim}')
 
-                    # --- Baseline: traverse_explanations_SHAP ---
-                    if explanation_tool == 1:
+                    # --- Baseline: Autolycus (base LIME if et=0, base SHAP if et=1) ---
+                    if explanation_tool in (0, 1):
                         if max_sim_baseline[i]:
-                            print('Sample set', i, " [SHAP base] Max similarity reached, skipping.")
+                            print('Sample set', i, f" [{base_label}] Max similarity reached, skipping.")
                             sims_baseline += [1]
                             real_accuracy_baseline += [t_accuracy]
                         else:
-                            v_samples_np_b, v_pred_dec_b, n_query_b = traverse_explanations_SHAP(
-                                samples_mega[i][g], t_explainer, t_model, lb, ub,
-                                query_limit[h], f, args2, model_name, X_train, y_train)
+                            if explanation_tool == 0:
+                                v_samples_np_b, v_pred_dec_b, n_query_b = traverse_explanations_LIME(
+                                    samples_mega[i][g], t_explainer, t_model, lb, ub,
+                                    query_limit[h], f, args2)
+                            else:
+                                v_samples_np_b, v_pred_dec_b, n_query_b = traverse_explanations_SHAP(
+                                    samples_mega[i][g], t_explainer, t_model, lb, ub,
+                                    query_limit[h], f, args2, model_name, X_train, y_train)
                             m_sim_b, m_acc_b = _build_surrogate_and_eval(v_samples_np_b, v_pred_dec_b)
                             sims_baseline += [m_sim_b]
                             real_accuracy_baseline += [m_acc_b]
                             if m_sim_b == 1:
                                 max_sim_baseline[i] = True
-                            print(f'[SHAP base] Sample set {i}, n_queries={len(v_pred_dec_b)}, Top similarity={m_sim_b}')
+                            print(f'[{base_label}] Sample set {i}, n_queries={n_query_b}, Set Size = {len(v_samples_np_b)}, Top similarity={m_sim_b}')
+
+                    # --- New method: traverse_explanations_SHAP4 (counterfactual flip) ---
+                    if run_shap4 and explanation_tool == 1:
+                        if max_sim_shap4[i]:
+                            print('Sample set', i, " [SHAP4] Max similarity reached, skipping.")
+                            sims_shap4 += [1]
+                            real_accuracy_shap4 += [t_accuracy]
+                        else:
+                            v_samples_np_4, v_pred_dec_4, n_query_4 = traverse_explanations_SHAP4(
+                                samples_mega[i][g], t_explainer, t_model, lb, ub,
+                                query_limit[h], f, args2, model_name, X_train, y_train)
+                            m_sim_4, m_acc_4 = _build_surrogate_and_eval(v_samples_np_4, v_pred_dec_4)
+                            sims_shap4 += [m_sim_4]
+                            real_accuracy_shap4 += [m_acc_4]
+                            if m_sim_4 == 1:
+                                max_sim_shap4[i] = True
+                            print(f'[SHAP4]     Sample set {i}, n_queries={n_query_4}, Set Size = {len(v_samples_np_4)}, Top similarity={m_sim_4}')
 
                 accuracies += [real_accuracy]
                 rtest_sims += [sims]
                 accuracies_baseline += [real_accuracy_baseline]
                 rtest_sims_baseline += [sims_baseline]
+                if run_shap4:
+                    accuracies_shap4 += [real_accuracy_shap4]
+                    rtest_sims_shap4 += [sims_shap4]
 
                 avg_main = round(np.mean(sims), 4) if sims else 0
+                std_main = round(np.std(sims), 4) if sims else 0
                 avg_base = round(np.mean(sims_baseline), 4) if sims_baseline else 0
+                std_base = round(np.std(sims_baseline), 4) if sims_baseline else 0
                 print(f"\n=== Query limit {query_limit[h]} | k={f} | n={sample_set_sizes[g]} ===")
-                print(f"  [SHAP3 main]    Avg similarity: {avg_main}  | All: {sims}")
-                if explanation_tool == 1:
-                    print(f"  [SHAP baseline] Avg similarity: {avg_base}  | All: {sims_baseline}")
+                print(f"  [{main_label} main]    Avg similarity: {avg_main} +/- {std_main}  | All: {sims}")
+                if explanation_tool in (0, 1):
+                    print(f"  [{base_label}] Avg similarity: {avg_base} +/- {std_base}  | All: {sims_baseline}")
                     print(f"  Difference (main - baseline): {round(avg_main - avg_base, 4):+.4f}\n")
+                if run_shap4 and explanation_tool == 1:
+                    avg_s4 = round(np.mean(sims_shap4), 4) if sims_shap4 else 0
+                    print(f"  [SHAP4 cf-flip] Avg similarity: {avg_s4}  | All: {sims_shap4}")
+                    print(f"  Difference (SHAP4 - baseline): {round(avg_s4 - avg_base, 4):+.4f}")
+                    print(f"  Difference (SHAP4 - SHAP3):    {round(avg_s4 - avg_main, 4):+.4f}\n")
 
     args0 = [which_dataset, which_model, explanation_tool]
     args3 = [t_model, model_name, t_accuracy, t_explainer]
@@ -2740,14 +4106,23 @@ def run_attack_auto_compare(wd, wm, et, hms, sss, nfe, ql, so):
     if save_option:
         save_results(dataset_name, model_name, accuracies, rtest_sims, samples_mega)
 
+    flat_main = [s for batch in rtest_sims for s in batch]
     print("\n========== FINAL COMPARISON SUMMARY ==========")
-    print(f"  [SHAP3 main]    Overall avg similarity: {round(np.mean([s for batch in rtest_sims for s in batch]), 4)}")
-    if explanation_tool == 1 and rtest_sims_baseline:
+    print(f"  [{main_label} main]    Overall avg similarity: {round(np.mean(flat_main), 4)} +/- {round(np.std(flat_main), 4)}")
+    if explanation_tool in (0, 1) and rtest_sims_baseline:
         flat_base = [s for batch in rtest_sims_baseline for s in batch]
-        print(f"  [SHAP baseline] Overall avg similarity: {round(np.mean(flat_base), 4)}")
-        print(f"  Overall difference (main - baseline): {round(np.mean([s for batch in rtest_sims for s in batch]) - np.mean(flat_base), 4):+.4f}")
+        print(f"  [{base_label}] Overall avg similarity: {round(np.mean(flat_base), 4)} +/- {round(np.std(flat_base), 4)}")
+        print(f"  Overall difference (main - baseline): {round(np.mean(flat_main) - np.mean(flat_base), 4):+.4f}")
+    if run_shap4 and explanation_tool == 1:
+        flat_s4 = [s for batch in rtest_sims_shap4 for s in batch]
+        if flat_s4:   # SHAP4 arm only runs on the SHAP path; skip on LIME to avoid mean([])=nan
+            print(f"  [SHAP4 cf-flip] Overall avg similarity: {round(np.mean(flat_s4), 4)}")
     print("===============================================\n")
 
+    if run_shap4 and explanation_tool == 1:   # SHAP4 arm is SHAP-only; keep 6-tuple on LIME path
+        return (accuracies, rtest_sims, accuracies_baseline, rtest_sims_baseline,
+                samples_mega, other_args,
+                {'accuracies': accuracies_shap4, 'rtest_sims': rtest_sims_shap4})
     return accuracies, rtest_sims, accuracies_baseline, rtest_sims_baseline, samples_mega, other_args
 
 
@@ -2856,7 +4231,7 @@ def run_attack_auto_v2(wd, wm, et, hms, sss, nfe, ql, so, top_exp=5):  # make su
                     break
                 for etype, (v_samples_np, v_pred_dec, n_query) in v_samples_map.items():
                     for h in range(len(query_limit)):
-                        print(f"\Training a surrogate model for explanation type: {etype} and query limit: {query_limit[h]}")
+                        print(f"Training a surrogate model for explanation type: {etype} and query limit: {query_limit[h]}")
                         data_x = v_samples_np
                         data_y = v_pred_dec
                         #visualize the samples calling a function
@@ -3149,3 +4524,803 @@ def save_results(dataset_name, model_name, acs, rsims, smegas):
 def load_results(dataset_name,
                  model_name):  # accuracies, rtest_sims, samples_mega = unpickling(dataset_name, model_name)
     return unpickling(dataset_name, model_name)
+
+
+# ============================================================================
+# SHAP-normal reconstruction diagnostic  (added 2026-07)
+# Read-only: adds new functions only, touches no existing attack path.
+# See SPEC_shap_normal_diagnostic.md for the full rationale.
+# ============================================================================
+
+def _cosine_masked(a, b):
+    """Cosine over coords finite in BOTH vectors (NaN coords, e.g. categorical g, dropped)."""
+    a = np.asarray(a, float).ravel()
+    b = np.asarray(b, float).ravel()
+    m = np.isfinite(a) & np.isfinite(b)
+    if m.sum() == 0:
+        return np.nan
+    av, bv = a[m], b[m]
+    na, nb = np.linalg.norm(av), np.linalg.norm(bv)
+    if na == 0 or nb == 0:
+        return np.nan
+    return float(np.dot(av, bv) / (na * nb))
+
+
+def reconstruct_normal_single(s, x, x0, eps=1e-8):
+    """Single-sample normal  w_i = s_i / (x_i - x0_i).
+    0/0 guard: coords with |x_i - x0_i| < eps are masked out (w_i = 0), never divided.
+    Returns (w, identifiable_mask)."""
+    s = np.asarray(s, float).ravel()
+    d = np.asarray(x, float).ravel() - np.asarray(x0, float).ravel()
+    w = np.zeros_like(d)
+    mask = np.abs(d) >= eps
+    w[mask] = s[mask] / d[mask]
+    return w, mask
+
+
+def reconstruct_normal_batch(S, X, x0, var_eps=1e-10):
+    """Collection normal: per-feature no-intercept OLS slope of s_i on d_i=(x_i-x0_i)
+    across a batch (the separable form of the brief's ElasticNet, without regularization).
+        w_i = sum_j d_ij s_ij / sum_j d_ij^2
+    Guard: coords with (sum d^2 <= var_eps) OR (var(d_i) <= var_eps) are unidentified —
+    set to 0 and reported via `ident`, so poorly-identified coordinates are VISIBLE.
+    Returns (w, d_var, ident_mask)."""
+    S = np.asarray(S, float)
+    X = np.asarray(X, float)
+    x0 = np.asarray(x0, float).ravel()
+    D = X - x0                       # (m, n)
+    denom = np.sum(D * D, axis=0)    # (n,)
+    num = np.sum(D * S, axis=0)      # (n,)
+    d_var = np.var(D, axis=0)        # (n,) identifiability diagnostic
+    w = np.zeros_like(denom)
+    ident = (denom > var_eps) & (d_var > var_eps)
+    w[ident] = num[ident] / denom[ident]
+    return w, d_var, ident
+
+
+def finite_diff_normal(f, x, feature_ranges, frac=1e-2, cont_mask=None):
+    """True local normal g = central-difference gradient of scalar output f at x, in f's
+    output space. Step_i = frac * range_i. Categorical axes (cont_mask False) -> NaN
+    (a finite difference is meaningless on a discrete axis)."""
+    x = np.asarray(x, float).ravel()
+    n = x.size
+    g = np.full(n, np.nan)
+    for i in range(n):
+        if cont_mask is not None and not cont_mask[i]:
+            continue
+        lo, hi = feature_ranges[i]
+        step = frac * (hi - lo) if hi > lo else frac
+        xp = x.copy(); xp[i] += step
+        xm = x.copy(); xm[i] -= step
+        g[i] = (float(f(xp.reshape(1, -1))[0]) - float(f(xm.reshape(1, -1))[0])) / (2.0 * step)
+    return g
+
+
+def _lime_normal(lime_expl, x, predict_fn, n_features, label=1, num_samples=1000):
+    """Local boundary normal from LIME = coefficients of LIME's locally-weighted linear
+    surrogate. LIME fits that surrogate on STANDARDIZED features (lime_tabular.py:453), so
+    its coefficients live in scaled space; convert back to RAW feature space via
+    w_raw_i = coef_i / scaler.scale_i (verified against the installed lime source). Same
+    output space as predict_fn (prob, class-`label`). Explainer MUST be built with
+    discretize_continuous=False so the coefficient is an actual per-axis slope (a gradient
+    estimate), not a bin-indicator weight. Returns a raw-space vector of length n_features."""
+    exp = lime_expl.explain_instance(np.asarray(x, float).ravel(), predict_fn,
+                                     labels=(label,), num_features=n_features,
+                                     num_samples=num_samples)
+    w = np.zeros(n_features, float)
+    for fi, wt in exp.local_exp[label]:
+        w[fi] = wt
+    scale = np.asarray(lime_expl.scaler.scale_, float).ravel()
+    scale = np.where(np.abs(scale) < 1e-12, 1.0, scale)
+    return w / scale
+
+
+def _topk_overlap(imp, g, top_k):
+    """Feature-SELECTION agreement: fraction of the top-k |imp| features that also fall in
+    the top-k |g| set, over coords where g is finite (continuous axes only). This is the
+    quantity the ±eps attack actually cares about — does the explanation pick the axes the
+    true local normal says matter? NaN if fewer than top_k continuous coords exist."""
+    imp = np.asarray(imp, float).ravel()
+    g = np.asarray(g, float).ravel()
+    idx = np.where(np.isfinite(g) & np.isfinite(imp))[0]
+    if idx.size < top_k:
+        return np.nan
+    gk = idx[np.argsort(-np.abs(g[idx]))[:top_k]]
+    ik = idx[np.argsort(-np.abs(imp[idx]))[:top_k]]
+    return len(set(gk.tolist()) & set(ik.tolist())) / float(top_k)
+
+
+def _output_fn_and_explainer(t_model, model_name, output_space, med):
+    """Return (f_out, explainer, uses_linear) for the requested output space, all w.r.t.
+    the single median baseline `med` (matching the attack's KernelExplainer setup)."""
+    med = np.asarray(med, float).reshape(1, -1)
+    if output_space == 'prob':
+        f_out = lambda X: np.asarray(t_model.predict_proba(np.asarray(X, float)))[:, 1]
+        expl = shap.KernelExplainer(f_out, med, normalize=False)
+        return f_out, expl, False
+    elif output_space == 'margin':
+        if model_name == 'lr':
+            f_out = lambda X: t_model.decision_function(np.asarray(X, float)).ravel()
+            expl = shap.LinearExplainer(t_model, med, feature_perturbation='interventional')
+            return f_out, expl, True
+        elif model_name == 'nb':
+            def f_out(X):
+                lp = t_model.predict_log_proba(np.asarray(X, float))
+                return lp[:, 1] - lp[:, 0]
+            expl = shap.KernelExplainer(f_out, med, normalize=False)
+            return f_out, expl, False
+        elif model_name == 'mlp':
+            def f_out(X):  # logit(prob) pseudo-margin
+                p = np.clip(np.asarray(t_model.predict_proba(np.asarray(X, float)))[:, 1], 1e-6, 1 - 1e-6)
+                return np.log(p / (1 - p))
+            expl = shap.KernelExplainer(f_out, med, normalize=False)
+            return f_out, expl, False
+        else:
+            raise ValueError(f"margin output space not available for model '{model_name}'")
+    else:
+        raise ValueError(f"unknown output_space '{output_space}'")
+
+
+def _true_linear_weights(t_model, model_name):
+    """Closed-form margin weights for the exact one-shot check (LR / NB only)."""
+    if model_name == 'lr':
+        return np.asarray(t_model.coef_).ravel()
+    if model_name == 'nb':
+        flp = np.asarray(t_model.feature_log_prob_)
+        return (flp[1] - flp[0]).ravel()
+    return None
+
+
+def run_shap_normal_diagnostic(which_dataset, which_model, output_space='prob',
+                               k_sweep=(30, 50, 100, 200), n_eval=150, aux_size=350,
+                               top_k=3, fd_frac=1e-2, shap_nsamples=128, seed=0,
+                               include_lime=False, lime_num_samples=1000,
+                               lime_sample_around=True, verbose=True):
+    """Reconstruct the local boundary normal from SHAP and measure (a) how well it matches
+    the true FD normal g and (b) how redundant it is with the attack's perturbation
+    direction p. Read-only; reuses the harness loaders. Binary targets only.
+
+    Returns a dict of aggregated cosines (overall, per-k, per confidence-bin), the
+    one-shot correctness check (margin + LR/NB), and the config used.
+    """
+    args1, args2 = load_dataset(which_dataset)
+    X_train, X_test, y_train, y_test, X_test_t, X_test_s, y_test_t, y_test_s = args1
+    (classes, features, n_classes, n_features, isCategorical, epsilon_set, canNegative,
+     classPossibilities, dataset_name, feature_ranges) = args2
+    if n_classes != 2:
+        raise ValueError(f"{dataset_name} is {n_classes}-class; diagnostic is binary-only "
+                         f"(class-1-only SHAP is invalid for multiclass).")
+
+    t_model, model_name = load_model(which_model, X_train, y_train)
+    Xtr = np.asarray(X_train, float)
+    med = np.median(Xtr, axis=0)                 # single baseline x0 (matches attack setup)
+    cont_mask = [not c for c in isCategorical]
+
+    f_out, explainer, _ = _output_fn_and_explainer(t_model, model_name, output_space, med)
+
+    # LIME normal (prob space only — LIME's predict_fn is a probability function). Built with
+    # discretize_continuous=False so its coefficients are per-axis slopes (a gradient estimate),
+    # making them directly comparable to g / w_single. This isolates the mechanism hypothesis:
+    # LIME's local linear fit recovers the boundary normal, default SHAP does not.
+    lime_expl = lime_predict = None
+    do_lime = include_lime and output_space == 'prob'
+    if include_lime and output_space != 'prob':
+        print(f"  [lime skipped for {dataset_name}/{model_name}] LIME normal is prob-space only "
+              f"(output_space={output_space}).")
+    if do_lime:
+        lime_expl = lime.lime_tabular.LimeTabularExplainer(
+            Xtr, mode='classification', discretize_continuous=False,
+            sample_around_instance=lime_sample_around, random_state=seed)
+        lime_predict = lambda X: np.asarray(t_model.predict_proba(np.asarray(X, float)))
+
+    rng = np.random.default_rng(seed)
+    bank_n = min(aux_size, Xtr.shape[0])
+    bank_idx = rng.choice(Xtr.shape[0], size=bank_n, replace=False)
+    bank = Xtr[bank_idx]
+    ks = [k for k in k_sweep if k < bank_n]       # need k neighbors excluding self
+    if not ks:
+        ks = [max(1, bank_n - 1)]
+
+    # SHAP for the whole bank once (cached; reused for eval points and their neighbors).
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        try:
+            # l1_reg=0: disable shap's default L1 sparsification, which would zero out
+            # features and break the linear-reconstruction identity s_i = w_i*(x_i-x0_i).
+            S_bank = np.asarray(explainer.shap_values(bank, nsamples=shap_nsamples,
+                                                      l1_reg=0, silent=True))
+        except TypeError:  # LinearExplainer has no nsamples/silent/l1_reg kwargs
+            S_bank = np.asarray(explainer.shap_values(bank))
+    if S_bank.ndim == 3:                          # (m, n, out) -> class-1 / first out
+        S_bank = S_bank[:, :, min(1, S_bank.shape[2] - 1)]
+
+    # kNN index in standardized input space.
+    scaler = StandardScaler().fit(bank)
+    bank_z = scaler.transform(bank)
+    max_k = max(ks)
+    nn = NearestNeighbors(n_neighbors=min(max_k + 1, bank_n)).fit(bank_z)
+    _, nbr_idx = nn.kneighbors(bank_z)             # includes self at col 0
+
+    eval_m = min(n_eval, bank_n)
+    eval_rows = rng.choice(bank_n, size=eval_m, replace=False)
+
+    w_true = _true_linear_weights(t_model, model_name) if output_space == 'margin' else None
+
+    rec = {'single_g': [], 'single_p': [], 'batch_g': {k: [] for k in ks},
+           'batch_p': {k: [] for k in ks}, 'batch_single': {k: [] for k in ks},
+           'conf': [], 'single_g_by_conf': {}, 'ident_frac': [], 'oneshot_cos': [],
+           'oneshot_maxabs': [], 'single_ident_frac': [], 'g_p': [],
+           # LIME arms (paired with SHAP on the SAME eval points):
+           'lime_g': [], 'lime_single': [], 'shap_topk_hit': [], 'lime_topk_hit': []}
+
+    for r in eval_rows:
+        x = bank[r]
+        s = S_bank[r]
+        w_single, id_s = reconstruct_normal_single(s, x, med)
+        rec['single_ident_frac'].append(float(id_s.mean()))
+        g = finite_diff_normal(f_out, x, feature_ranges, frac=fd_frac, cont_mask=cont_mask)
+        # attack direction p = top-k |s| axes (same output space as w by construction)
+        p = np.zeros_like(s)
+        top = np.argsort(-np.abs(s))[:top_k]
+        p[top] = s[top]
+
+        rec['single_g'].append(_cosine_masked(w_single, g))
+        rec['single_p'].append(_cosine_masked(w_single, p))
+        rec['g_p'].append(_cosine_masked(g, p))   # clean redundancy: true normal vs attack dir
+        rec['shap_topk_hit'].append(_topk_overlap(s, g, top_k))
+
+        if do_lime:
+            w_lime = _lime_normal(lime_expl, x, lime_predict, n_features,
+                                  num_samples=lime_num_samples)
+            rec['lime_g'].append(_cosine_masked(w_lime, g))         # LIME recovers true normal?
+            rec['lime_single'].append(_cosine_masked(w_lime, w_single))  # LIME vs SHAP normal
+            rec['lime_topk_hit'].append(_topk_overlap(w_lime, g, top_k))  # feature-selection vs g
+
+        proba = np.asarray(t_model.predict_proba(x.reshape(1, -1)))[0]
+        conf = float(proba.max())
+        rec['conf'].append(conf)
+
+        if w_true is not None:
+            # correctness on IDENTIFIABLE coords only (x_i==x0_i is a 0/0, uninformative)
+            m = id_s & np.isfinite(w_single) & np.isfinite(w_true)
+            if m.any():
+                rec['oneshot_cos'].append(_cosine_masked(w_single[m], w_true[m]))
+                rec['oneshot_maxabs'].append(float(np.max(np.abs(w_single[m] - w_true[m]))))
+            else:
+                rec['oneshot_cos'].append(np.nan)
+                rec['oneshot_maxabs'].append(np.nan)
+
+        for k in ks:
+            nb = nbr_idx[r][1:k + 1]               # drop self
+            w_b, d_var, ident = reconstruct_normal_batch(S_bank[nb], bank[nb], med)
+            rec['batch_g'][k].append(_cosine_masked(w_b, g))
+            rec['batch_p'][k].append(_cosine_masked(w_b, p))
+            rec['batch_single'][k].append(_cosine_masked(w_b, w_single))
+            if k == max_k:
+                rec['ident_frac'].append(float(ident.mean()))
+
+    def _m(v):
+        v = np.asarray(v, float)
+        v = v[np.isfinite(v)]
+        return (float(np.mean(v)), float(np.std(v)), int(v.size)) if v.size else (np.nan, np.nan, 0)
+
+    conf = np.asarray(rec['conf'])
+    bins = [(0.5, 0.7), (0.7, 0.9), (0.9, 1.01)]
+    single_g = np.asarray(rec['single_g'])
+    by_conf = {}
+    for lo, hi in bins:
+        sel = (conf >= lo) & (conf < hi)
+        by_conf[f"{lo:.1f}-{hi:.1f}"] = _m(single_g[sel]) if sel.any() else (np.nan, np.nan, 0)
+
+    out = {
+        'dataset': dataset_name, 'model': model_name, 'output_space': output_space,
+        'n_eval': eval_m, 'bank_n': bank_n, 'k_sweep': ks, 'top_k': top_k,
+        'fd_frac': fd_frac, 'shap_nsamples': shap_nsamples, 'seed': seed,
+        'cos_single_g': _m(rec['single_g']),
+        'cos_single_p': _m(rec['single_p']),
+        'cos_g_p': _m(rec['g_p']),
+        'cos_batch_g': {k: _m(rec['batch_g'][k]) for k in ks},
+        'cos_batch_p': {k: _m(rec['batch_p'][k]) for k in ks},
+        'cos_batch_single': {k: _m(rec['batch_single'][k]) for k in ks},
+        'cos_single_g_by_conf': by_conf,
+        'ident_frac_maxk': _m(rec['ident_frac']),
+        'single_ident_frac': _m(rec['single_ident_frac']),
+        'oneshot_cos_w_true': _m(rec['oneshot_cos']) if w_true is not None else None,
+        'oneshot_maxabs_err': _m(rec['oneshot_maxabs']) if w_true is not None else None,
+        # SHAP top-k feature-selection agreement with the true normal (always computed):
+        'topk_hit_shap_g': _m(rec['shap_topk_hit']),
+        # LIME arms (None when include_lime is off / not prob space):
+        'include_lime': do_lime,
+        'lime_num_samples': lime_num_samples if do_lime else None,
+        'cos_lime_g': _m(rec['lime_g']) if do_lime else None,
+        'cos_lime_single': _m(rec['lime_single']) if do_lime else None,
+        'topk_hit_lime_g': _m(rec['lime_topk_hit']) if do_lime else None,
+    }
+    if verbose:
+        print(f"[{dataset_name}/{model_name}/{output_space}] "
+              f"cos(w_single,g)={out['cos_single_g'][0]:.3f}  "
+              f"cos(w_single,p)={out['cos_single_p'][0]:.3f}  "
+              f"cos(w_batch@{max(ks)},g)={out['cos_batch_g'][max(ks)][0]:.3f}  "
+              f"cos(w_batch@{max(ks)},p)={out['cos_batch_p'][max(ks)][0]:.3f}")
+        if do_lime:
+            print(f"    LIME: cos(w_lime,g)={out['cos_lime_g'][0]:.3f}  "
+                  f"cos(w_lime,w_single)={out['cos_lime_single'][0]:.3f}  "
+                  f"topk_hit(g): lime={out['topk_hit_lime_g'][0]:.2f} vs "
+                  f"shap={out['topk_hit_shap_g'][0]:.2f}")
+        if w_true is not None:
+            print(f"    one-shot: cos(w_single,w_true)={out['oneshot_cos_w_true'][0]:.4f}  "
+                  f"max|err|={out['oneshot_maxabs_err'][0]:.3e}")
+    return out
+
+
+def _local_influence(f_prob, x, isCat, classPossibilities, feature_ranges, cont_steps=(0.25, 0.5)):
+    """Ground-truth local feature influence on the class-1 probability: for each feature, the
+    max |Δ f_prob| achievable by changing ONLY that feature. Categorical -> try every OTHER
+    category; continuous -> try +/- cont_steps * range. This is the discrete/local analog of
+    |g| ('how much does this feature control the local prediction?') — exactly the property a
+    +/-eps perturbation attack wants the features it SELECTS to have. Returns (infl, n_queries)."""
+    x = np.asarray(x, float).ravel()
+    n = x.size
+    base = float(f_prob(x.reshape(1, -1))[0])
+    infl = np.zeros(n)
+    q = 0
+    for i in range(n):
+        if isCat[i]:
+            cand = [v for v in range(int(classPossibilities[i])) if v != int(round(x[i]))]
+        else:
+            lo, hi = feature_ranges[i]
+            rng = (hi - lo) if hi > lo else 1.0
+            cand = []
+            for s in cont_steps:
+                cand += [x[i] + s * rng, x[i] - s * rng]
+        best = 0.0
+        for v in cand:
+            xp = x.copy(); xp[i] = v
+            best = max(best, abs(float(f_prob(xp.reshape(1, -1))[0]) - base))
+            q += 1
+        infl[i] = best
+    return infl, q
+
+
+def run_lime_shap_selection_diagnostic(which_dataset, which_model, n_eval=60, aux_size=350,
+                                       top_k=3, shap_nsamples=128, lime_num_samples=1000,
+                                       seed=0, verbose=True):
+    """Does LIME's feature SELECTION pick locally-influential features better than SHAP (and
+    better than random)? This is the exact channel the Autolycus LIME-vs-random ablation
+    measured. Faithful to the attack: BOTH explainers explain the class-1 probability
+    (load_explainer uses predict_proba[:,1] for SHAP; LIME's default label is 1), SHAP uses
+    its DEFAULT L1 sparsification (as the attack does), LIME is discretize_continuous=True
+    (as load_explainer builds it). Ground truth = `_local_influence` per feature.
+
+    Reports, over `n_eval` points: top-k feature-selection agreement with the true local
+    influence for LIME vs SHAP vs the random baseline (k/n_features), plus the soft
+    'influence captured' ratio. Works for multiclass (class-1 proba is always defined)."""
+    args1, args2 = load_dataset(which_dataset)
+    X_train = args1[0]
+    (classes, features, n_classes, n_features, isCategorical, epsilon_set, canNegative,
+     classPossibilities, dataset_name, feature_ranges) = args2
+    t_model, model_name = load_model(which_model, X_train, args1[2])
+    Xtr = np.asarray(X_train, float)
+    med = np.median(Xtr, axis=0).reshape(1, -1)
+
+    f_prob1 = lambda X: np.asarray(t_model.predict_proba(np.asarray(X, float)))[:, 1]
+    shap_expl = shap.KernelExplainer(f_prob1, med, normalize=False)
+    lime_expl = lime.lime_tabular.LimeTabularExplainer(Xtr, discretize_continuous=True,
+                                                       random_state=seed)
+
+    rng = np.random.default_rng(seed)
+    bank_n = min(aux_size, Xtr.shape[0])
+    bank = Xtr[rng.choice(Xtr.shape[0], size=bank_n, replace=False)]
+    eval_rows = rng.choice(bank_n, size=min(n_eval, bank_n), replace=False)
+
+    feat_type = ('categorical' if all(isCategorical) else
+                 'continuous' if not any(isCategorical) else 'mixed')
+
+    hit_l, hit_s, capt_l, capt_s = [], [], [], []
+    for r in eval_rows:
+        x = bank[r]
+        infl, _ = _local_influence(f_prob1, x, isCategorical, classPossibilities, feature_ranges)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            s = np.asarray(shap_expl.shap_values(x.reshape(1, -1), nsamples=shap_nsamples,
+                                                 silent=True)).ravel()   # DEFAULT l1_reg (attack)
+        imp_shap = np.abs(s)
+
+        exp = lime_expl.explain_instance(x, t_model.predict_proba, num_features=n_features,
+                                         num_samples=lime_num_samples)
+        key = list(exp.as_map().keys())[0]
+        imp_lime = np.zeros(n_features)
+        for fi, wt in exp.local_exp[key]:
+            imp_lime[fi] = abs(wt)
+
+        hit_l.append(_topk_overlap(imp_lime, infl, top_k))
+        hit_s.append(_topk_overlap(imp_shap, infl, top_k))
+        true_top = np.argsort(-infl)[:top_k]
+        denom = infl[true_top].sum()
+        if denom > 0:
+            capt_l.append(infl[np.argsort(-imp_lime)[:top_k]].sum() / denom)
+            capt_s.append(infl[np.argsort(-imp_shap)[:top_k]].sum() / denom)
+
+    def _m(v):
+        v = np.asarray(v, float); v = v[np.isfinite(v)]
+        return (float(np.mean(v)), float(np.std(v)), int(v.size)) if v.size else (np.nan, np.nan, 0)
+
+    out = {'dataset': dataset_name, 'model': model_name, 'feat_type': feat_type,
+           'n_eval': int(eval_rows.size), 'top_k': top_k, 'n_features': n_features,
+           'hit_lime': _m(hit_l), 'hit_shap': _m(hit_s),
+           'hit_random_expected': top_k / float(n_features),
+           'capt_lime': _m(capt_l), 'capt_shap': _m(capt_s)}
+    if verbose:
+        print(f"[{dataset_name}/{model_name}/{feat_type}] "
+              f"hit(infl): lime={out['hit_lime'][0]:.2f} shap={out['hit_shap'][0]:.2f} "
+              f"rand~{out['hit_random_expected']:.2f}  |  "
+              f"captured: lime={out['capt_lime'][0]:.2f} shap={out['capt_shap'][0]:.2f}")
+    return out
+
+
+def _parse_lime_rule(rule):
+    """Extract (low, high) numeric bin edges from a LIME discretization rule string, mirroring
+    `explanation_parser`. Forms: 'f <= v' / 'f < v' -> high; 'f > v' / 'f >= v' -> low;
+    'a < f <= b' -> (a, b). Returns (low_or_None, high_or_None)."""
+    txt = rule.split(' ')
+    low = high = None
+    try:
+        if len(txt) >= 5:                       # a < f <= b
+            low, high = float(txt[0]), float(txt[-1])
+        elif len(txt) >= 3:                      # f <op> v
+            val = float(txt[-1])
+            if txt[-2] in ('<=', '<'):
+                high = val
+            else:
+                low = val
+    except ValueError:
+        pass
+    return low, high
+
+
+def run_lime_threshold_diagnostic(which_dataset, which_model, n_eval=60, aux_size=350,
+                                  top_k=3, epsilon=1.0, lime_num_samples=1000, seed=0,
+                                  verbose=True):
+    """Explain the MAGNITUDE of the LIME-vs-random ablation by decomposing the LIME attack move
+    into two channels, measured as boundary-CROSSING rate (a perturbation that flips the predicted
+    class = a boundary-informative training sample). Faithful to `traverse_explanations_LIME`:
+    LIME picks top-k features by |weight| and snaps each to its bin edge (high+eps / low-eps);
+    the random ablation picks random features and steps current +/- eps.
+
+      cr_lime_bin   = LIME features, snapped to bin edge +/- eps   (full LIME move)
+      cr_lime_naive = LIME features, current +/- eps               (feature choice only)
+      cr_rand_naive = random features, current +/- eps             (the random ablation)
+      total   = cr_lime_bin - cr_rand_naive   (mirrors the ablation)
+      feat_ch = cr_lime_naive - cr_rand_naive (value of LIME's feature SELECTION)
+      thr_ch  = cr_lime_bin - cr_lime_naive   (value of LIME's bin-edge THRESHOLD)
+
+    Candidate validity replicates the traversal's check (0 <= v < classPossibilities[f])."""
+    args1, args2 = load_dataset(which_dataset)
+    X_train = args1[0]
+    (classes, features, n_classes, n_features, isCategorical, epsilon_set, canNegative,
+     classPossibilities, dataset_name, feature_ranges) = args2
+    t_model, model_name = load_model(which_model, X_train, args1[2])
+    Xtr = np.asarray(X_train, float)
+    lime_expl = lime.lime_tabular.LimeTabularExplainer(Xtr, discretize_continuous=True,
+                                                       random_state=seed)
+    rng = np.random.default_rng(seed)
+    bank_n = min(aux_size, Xtr.shape[0])
+    bank = Xtr[rng.choice(Xtr.shape[0], size=bank_n, replace=False)]
+    eval_rows = rng.choice(bank_n, size=min(n_eval, bank_n), replace=False)
+    feat_type = ('categorical' if all(isCategorical) else
+                 'continuous' if not any(isCategorical) else 'mixed')
+
+    def crossed(x, f, v, base):
+        if v < 0 or v >= classPossibilities[f]:
+            return None                          # invalid candidate (as the traversal rejects)
+        xp = x.copy(); xp[f] = v
+        return 1.0 if int(t_model.predict(xp.reshape(1, -1))[0]) != base else 0.0
+
+    cr_lime_bin, cr_lime_naive, cr_rand_naive = [], [], []
+    for r in eval_rows:
+        x = bank[r]
+        base = int(t_model.predict(x.reshape(1, -1))[0])
+        exp = lime_expl.explain_instance(x, t_model.predict_proba, num_features=n_features,
+                                         num_samples=lime_num_samples)
+        key = list(exp.as_map().keys())[0]
+        order = exp.local_exp[key]               # (feat_idx, weight), importance-sorted
+        rules = [rr for rr, _ in exp.as_list(key)]  # same order, rule strings with bin edges
+        for i in range(min(top_k, len(order))):
+            f = int(order[i][0])
+            low, high = _parse_lime_rule(rules[i]) if i < len(rules) else (None, None)
+            for edge, sign in ((high, +1.0), (low, -1.0)):   # LIME move: bin edge +/- eps
+                if edge is not None:
+                    c = crossed(x, f, edge + sign * epsilon, base)
+                    if c is not None:
+                        cr_lime_bin.append(c)
+            for sign in (+1.0, -1.0):                        # same features, naive step
+                c = crossed(x, f, x[f] + sign * epsilon, base)
+                if c is not None:
+                    cr_lime_naive.append(c)
+        for f in rng.choice(n_features, size=min(top_k, n_features), replace=False):  # random ablation
+            for sign in (+1.0, -1.0):
+                c = crossed(x, int(f), x[int(f)] + sign * epsilon, base)
+                if c is not None:
+                    cr_rand_naive.append(c)
+
+    def _m(v):
+        v = np.asarray(v, float)
+        return (float(np.mean(v)), int(v.size)) if v.size else (np.nan, 0)
+
+    crb, cln, crn = _m(cr_lime_bin), _m(cr_lime_naive), _m(cr_rand_naive)
+    out = {'dataset': dataset_name, 'model': model_name, 'feat_type': feat_type,
+           'n_eval': int(eval_rows.size), 'top_k': top_k, 'epsilon': epsilon,
+           'cr_lime_bin': crb, 'cr_lime_naive': cln, 'cr_rand_naive': crn,
+           'total': crb[0] - crn[0], 'feat_ch': cln[0] - crn[0], 'thr_ch': crb[0] - cln[0]}
+    if verbose:
+        print(f"[{dataset_name}/{model_name}/{feat_type}] cross: bin={crb[0]:.3f} "
+              f"limeNaive={cln[0]:.3f} rand={crn[0]:.3f}  |  total={out['total']:+.3f} "
+              f"feat_ch={out['feat_ch']:+.3f} thr_ch={out['thr_ch']:+.3f}")
+    return out
+
+
+def _fit_one_surrogate(model_name, v_samples_np, v_pred_dec, n_classes, depth=15, seed=0):
+    """Fit a SINGLE surrogate of the target's family on traversed samples, mirroring the
+    per-family choices in `_build_surrogate_and_eval` (dt/rdf depth=15; knn k=n_classes; etc.)
+    but returning the fitted model instead of a score. mlp is out of scope (architecture
+    selection) and raises."""
+    if model_name == 'dt':
+        s_model = dt(random_state=seed, max_depth=depth)
+    elif model_name == 'lr':
+        s_model = lr(max_iter=1000, random_state=seed)
+    elif model_name == 'nb':
+        s_model = mnb()
+    elif model_name == 'rdf':
+        s_model = rf(max_depth=depth, random_state=seed)
+    elif model_name == 'knn':
+        s_model = knn(n_neighbors=n_classes)
+    else:
+        raise ValueError(f"disagreement diagnostic does not support model '{model_name}'")
+    s_model.fit(v_samples_np, v_pred_dec)
+    return s_model
+
+
+def run_disagreement_diagnostic(which_dataset, which_model, query_limit=500, nfe=3,
+                                set_size=5, seed=0, conf_thr=0.8, n_eval=500,
+                                verbose=True, save_plot=True):
+    """Are the surrogate/target DISAGREEMENTS coverage errors or boundary errors?
+
+    Motivation (observed): points the surrogate labels differently from the target often carry
+    HIGH target confidence. A high-confidence point sits deep in a target class region, far from
+    the target's boundary -- boundary search cannot fix it, only better COVERAGE can. This
+    diagnostic decides which failure mode dominates, i.e. which half of the two-part method
+    (diverse generation vs boundary search) to invest in.
+
+    Method: run the real attack (SHAP3) to build ONE surrogate, then over the held-out target
+    test set X_test_t measure, per point:
+      - conf  = target predict_proba.max()                         (how interior the point is)
+      - d_opp = normalized distance (categorical-aware, via `_compute_dist_matrix`) to the
+                nearest test point of a DIFFERENT target-predicted class                (boundary proximity)
+    A disagreement is INTERIOR/coverage if conf > conf_thr AND d_opp is above the agreement-set
+    median (farther from the boundary than a typical correct point); otherwise BOUNDARY.
+    d_opp reuses the harness's own metric (Hamming on categoricals, range-normalized L2 on
+    continuous), so it is meaningful on categorical data where a continuous bisection would go
+    off-manifold. Writes disagreement_diag.json (+ a conf-vs-d_opp scatter).
+    """
+    random.seed(seed)
+    np.random.seed(seed)
+
+    args1, args2 = load_dataset(which_dataset)
+    X_train, X_test, y_train, y_test, X_test_t, X_test_s, y_test_t, y_test_s = args1
+    (classes, features, n_classes, n_features, isCategorical, epsilon_set, canNegative,
+     classPossibilities, dataset_name, feature_ranges) = args2
+    t_model, model_name = load_model(which_model, X_train, y_train)
+    t_explainer = load_explainer(1, t_model, model_name, X_train)  # SHAP, as SHAP3 expects
+
+    # --- run the real attack (SHAP3) to produce the training set, then fit one surrogate ---
+    samples_mega = mega_sample_generation(X_test_s.to_numpy(), y_test_s, n_classes, [set_size], 1)
+    relax_factor = 0.5
+    lb = int((query_limit // n_classes) * (1 - relax_factor) + 1)
+    ub = int((query_limit // n_classes) * (n_classes + relax_factor) + 1)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        v_samples_np, v_pred_dec, n_query = traverse_explanations_SHAP3(
+            samples_mega[0][0], t_explainer, t_model, lb, ub, query_limit, nfe, args2,
+            model_name, X_train, y_train)
+    s_model = _fit_one_surrogate(model_name, v_samples_np, v_pred_dec, n_classes, seed=seed)
+
+    # --- evaluate on the target test set ---
+    Xt = np.asarray(X_test_t.values, dtype=float)
+    rng = np.random.default_rng(seed)
+    if Xt.shape[0] > n_eval:
+        sel = rng.choice(Xt.shape[0], size=n_eval, replace=False)
+        Xt = Xt[sel]
+    fidelity = float(np.mean(np.argmax(t_model.predict_proba(Xt), axis=1) ==
+                             np.argmax(s_model.predict_proba(Xt), axis=1)))
+
+    t_pred = np.asarray(t_model.predict(Xt))
+    s_pred = np.asarray(s_model.predict(Xt))
+    conf = t_model.predict_proba(Xt).max(axis=1)
+    disagree = (t_pred != s_pred)
+
+    # d_opp: nearest DIFFERENT-target-class distance, categorical-aware, self excluded.
+    D = _compute_dist_matrix(Xt, Xt, n_features, isCategorical, feature_ranges)
+    D = np.sqrt(np.maximum(D, 0.0))
+    same_class = (t_pred[:, None] == t_pred[None, :])
+    D[same_class] = np.inf          # keep only opposite-class candidates
+    d_opp = D.min(axis=1)           # inf only if a class is a singleton in the eval set
+    finite = np.isfinite(d_opp)
+
+    ag = finite & ~disagree
+    dg = finite & disagree
+    agree_med_d = float(np.median(d_opp[ag])) if ag.any() else float('nan')
+
+    interior = dg & (conf > conf_thr) & (d_opp > agree_med_d)
+    boundary = dg & ~((conf > conf_thr) & (d_opp > agree_med_d))
+
+    def _stats(mask):
+        if not np.any(mask):
+            return {'n': 0, 'conf_mean': None, 'conf_med': None, 'frac_highconf': None,
+                    'd_med': None}
+        c, d = conf[mask], d_opp[mask]
+        return {'n': int(mask.sum()), 'conf_mean': round(float(c.mean()), 4),
+                'conf_med': round(float(np.median(c)), 4),
+                'frac_highconf': round(float(np.mean(c > conf_thr)), 4),
+                'd_med': round(float(np.median(d[np.isfinite(d)])), 4) if np.isfinite(d).any() else None}
+
+    n_dis = int(dg.sum())
+    out = {
+        'dataset': dataset_name, 'model': model_name,
+        'feat_type': ('categorical' if all(isCategorical) else
+                      'continuous' if not any(isCategorical) else 'mixed'),
+        'n_eval': int(finite.sum()), 'n_query': int(n_query), 'fidelity': round(fidelity, 4),
+        'conf_thr': conf_thr, 'agree_median_d_opp': round(agree_med_d, 4),
+        'disagree': _stats(dg), 'agree': _stats(ag),
+        'interior': _stats(interior), 'boundary': _stats(boundary),
+        'frac_disagree_interior': round(interior.sum() / n_dis, 4) if n_dis else None,
+        'verdict': None,
+    }
+    # Verdict: coverage-dominant if most disagreements are interior high-confidence.
+    if n_dis:
+        fi = interior.sum() / n_dis
+        out['verdict'] = ('coverage-dominant' if fi >= 0.5 else
+                          'boundary-dominant' if fi <= 0.25 else 'mixed')
+
+    if verbose:
+        print(f"\n[{dataset_name}/{model_name}] fidelity={fidelity:.3f}  n_query={n_query}  "
+              f"eval={out['n_eval']}  disagreements={n_dis}")
+        print(f"  agree:    conf_med={out['agree']['conf_med']}  d_med={out['agree']['d_med']}")
+        print(f"  disagree: conf_med={out['disagree']['conf_med']}  d_med={out['disagree']['d_med']}  "
+              f"frac_highconf={out['disagree']['frac_highconf']}")
+        print(f"  -> interior(coverage)={out['interior']['n']}  boundary={out['boundary']['n']}  "
+              f"frac_interior={out['frac_disagree_interior']}  VERDICT={out['verdict']}")
+
+    if save_plot and finite.any():
+        plt.figure(figsize=(7, 5))
+        plt.scatter(d_opp[ag], conf[ag], s=14, c='tab:blue', alpha=0.4, label='agree')
+        plt.scatter(d_opp[boundary], conf[boundary], s=26, c='tab:orange', alpha=0.8,
+                    label='disagree-boundary')
+        plt.scatter(d_opp[interior], conf[interior], s=34, c='tab:red', alpha=0.9,
+                    marker='^', label='disagree-interior(coverage)')
+        plt.axhline(conf_thr, ls='--', c='gray', lw=1)
+        plt.axvline(agree_med_d, ls='--', c='gray', lw=1)
+        plt.xlabel('d_opp: normalized distance to nearest opposite-class point (boundary proximity)')
+        plt.ylabel('target confidence  predict_proba.max()')
+        plt.title(f"{dataset_name}/{model_name}: disagreements  "
+                  f"(interior={out['interior']['n']}, boundary={out['boundary']['n']})")
+        plt.legend(loc='lower right', fontsize=8)
+        fname = f"disagreement_{dataset_name}_{model_name}.png"
+        plt.tight_layout()
+        plt.savefig(fname, dpi=140)
+        plt.close()
+        out['plot'] = fname
+        if verbose:
+            print(f"  wrote {fname}")
+
+    return out
+
+
+def _run_one_traversal(method, sample_set, t_explainer, t_model, lb, ub, query_limit, nfe,
+                       args2, model_name, X_train, y_train):
+    """Dispatch to base Autolycus (`traverse_explanations_SHAP`, no diverse / no boundary search)
+    or the two-part method (`traverse_explanations_SHAP3`, diverse + boundary bisection)."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        if method == 'base':
+            return traverse_explanations_SHAP(sample_set, t_explainer, t_model, lb, ub,
+                                              query_limit, nfe, args2, model_name, X_train, y_train)
+        elif method == 'shap3':
+            return traverse_explanations_SHAP3(sample_set, t_explainer, t_model, lb, ub,
+                                               query_limit, nfe, args2, model_name, X_train, y_train)
+        elif method == 'shap3_nodiv':   # boundary bisection only (Phase 1 diverse OFF)
+            return traverse_explanations_SHAP3(sample_set, t_explainer, t_model, lb, ub,
+                                               query_limit, nfe, args2, model_name, X_train, y_train,
+                                               use_diverse=False)
+        elif method in ('lime3', 'lime3_nodiv'):   # LIME analog of SHAP3 (t_explainer ignored)
+            lime_expl = lime.lime_tabular.LimeTabularExplainer(X_train.values, discretize_continuous=True)
+            return traverse_explanations_LIME3(sample_set, lime_expl, t_model, lb, ub,
+                                               query_limit, nfe, args2, model_name, X_train, y_train,
+                                               use_diverse=(method == 'lime3'))
+        raise ValueError(f"unknown method '{method}'")
+
+
+def run_confidence_gap_diagnostic(which_dataset, which_model, how_many_sets=10, query_limit=500,
+                                  nfe=3, set_size=5, seed=0, methods=('base', 'shap3'),
+                                  verbose=True):
+    """Reproduce the 'disagreed vs agreed avg TARGET confidence' table per sample set, and compare
+    base Autolycus (no diverse / no boundary search) against the two-part method (SHAP3).
+
+    The motivating observation was measured on BASE Autolycus: on some combos (e.g. nursery/lr) the
+    surrogate/target DISAGREEMENTS carry HIGHER target confidence than the AGREEMENTS -> a negative
+    (agreed - disagreed) gap = the surrogate is confidently wrong in interior regions it never
+    covered. The question this answers: does adding diverse generation + boundary search (SHAP3)
+    shrink disagreed confidence / turn the gap positive (errors pushed back onto the boundary)?
+
+    Confidence is the TARGET's predict_proba.max() (a fixed property of each test point, method-
+    independent); only the surrogate (hence the disagree mask) changes with method. Per set it
+    reports: disagreed avg conf, agreed avg conf, gap = agreed - disagreed, similarity (fidelity).
+    Writes confidence_gap_diag.json.
+    """
+    random.seed(seed)
+    np.random.seed(seed)
+
+    args1, args2 = load_dataset(which_dataset)
+    X_train, X_test, y_train, y_test, X_test_t, X_test_s, y_test_t, y_test_s = args1
+    (classes, features, n_classes, n_features, isCategorical, epsilon_set, canNegative,
+     classPossibilities, dataset_name, feature_ranges) = args2
+    t_model, model_name = load_model(which_model, X_train, y_train)
+    t_explainer = load_explainer(1, t_model, model_name, X_train)
+
+    samples_mega = mega_sample_generation(X_test_s.to_numpy(), y_test_s, n_classes,
+                                          [set_size], how_many_sets)   # SAME sets for all methods
+    relax_factor = 0.5
+    lb = int((query_limit // n_classes) * (1 - relax_factor) + 1)
+    ub = int((query_limit // n_classes) * (n_classes + relax_factor) + 1)
+
+    Xt = np.asarray(X_test_t.values, dtype=float)
+    t_pred = np.asarray(t_model.predict(Xt))
+    t_conf = t_model.predict_proba(Xt).max(axis=1)     # fixed, method-independent
+
+    feat_type = ('categorical' if all(isCategorical) else
+                 'continuous' if not any(isCategorical) else 'mixed')
+    out = {'dataset': dataset_name, 'model': model_name, 'feat_type': feat_type,
+           'how_many_sets': how_many_sets, 'query_limit': query_limit, 'methods': {}}
+
+    for method in methods:
+        rows = []
+        for i in range(how_many_sets):
+            v_samples, v_preds, n_query = _run_one_traversal(
+                method, samples_mega[i][0], t_explainer, t_model, lb, ub,
+                query_limit, nfe, args2, model_name, X_train, y_train)
+            s_model = _fit_one_surrogate(model_name, v_samples, v_preds, n_classes, seed=seed)
+            s_pred = np.asarray(s_model.predict(Xt))
+            dis = (t_pred != s_pred)
+            dg = float(t_conf[dis].mean()) if dis.any() else float('nan')
+            ag = float(t_conf[~dis].mean()) if (~dis).any() else float('nan')
+            rows.append({'set': i, 'n_query': int(n_query), 'n_dis': int(dis.sum()),
+                         'disagreed_conf': round(dg, 4), 'agreed_conf': round(ag, 4),
+                         'gap': round(ag - dg, 4), 'similarity': round(float((~dis).mean()), 4)})
+        # averages across sets
+        arr = lambda key: np.array([r[key] for r in rows], float)
+        avg = {'disagreed_conf': round(float(np.nanmean(arr('disagreed_conf'))), 4),
+               'agreed_conf': round(float(np.nanmean(arr('agreed_conf'))), 4),
+               'gap': round(float(np.nanmean(arr('gap'))), 4),
+               'similarity': round(float(arr('similarity').mean()), 4),
+               'n_neg_gap': int((arr('gap') < 0).sum())}
+        out['methods'][method] = {'rows': rows, 'avg': avg}
+
+        if verbose:
+            print(f"\n[{dataset_name}/{model_name}]  method={method}")
+            print(f"  {'set':>3}{'#dis':>6}{'disagreed':>11}{'agreed':>9}{'gap':>9}{'sim':>8}")
+            for r in rows:
+                print(f"  {r['set']:>3}{r['n_dis']:>6}{r['disagreed_conf']:>11.4f}"
+                      f"{r['agreed_conf']:>9.4f}{r['gap']:>+9.4f}{r['similarity']:>8.4f}")
+            print(f"  AVG    disagreed={avg['disagreed_conf']:.4f}  agreed={avg['agreed_conf']:.4f}"
+                  f"  gap={avg['gap']:+.4f}  sim={avg['similarity']:.4f}  neg-gap sets={avg['n_neg_gap']}/{how_many_sets}")
+
+    if 'base' in out['methods'] and 'shap3' in out['methods']:
+        b, s = out['methods']['base']['avg'], out['methods']['shap3']['avg']
+        out['shap3_minus_base'] = {'disagreed_conf': round(s['disagreed_conf'] - b['disagreed_conf'], 4),
+                                   'gap': round(s['gap'] - b['gap'], 4),
+                                   'similarity': round(s['similarity'] - b['similarity'], 4)}
+        if verbose:
+            d = out['shap3_minus_base']
+            print(f"\n  SHAP3 - base:  disagreed_conf {d['disagreed_conf']:+.4f}  "
+                  f"gap {d['gap']:+.4f}  similarity {d['similarity']:+.4f}")
+    return out

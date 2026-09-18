@@ -1,0 +1,60 @@
+[
+  {
+    "dataset": "iris",
+    "model": "DT",
+    "error": true
+  },
+  {
+    "dataset": "iris",
+    "model": "RF",
+    "error": true
+  },
+  {
+    "dataset": "crop",
+    "model": "DT",
+    "baseline_mean": 0.9088,
+    "baseline_std": 0.0298,
+    "shap3_mean": 0.9115,
+    "shap3_std": 0.024,
+    "shap4_mean": 0.9056,
+    "shap4_std": 0.0261,
+    "shap4b_mean": 0.92,
+    "shap4b_std": 0.0285
+  },
+  {
+    "dataset": "crop",
+    "model": "RF",
+    "baseline_mean": 0.9712,
+    "baseline_std": 0.0102,
+    "shap3_mean": 0.9744,
+    "shap3_std": 0.0115,
+    "shap4_mean": 0.9685,
+    "shap4_std": 0.0124,
+    "shap4b_mean": 0.9668,
+    "shap4b_std": 0.0145
+  },
+  {
+    "dataset": "breast",
+    "model": "DT",
+    "baseline_mean": 0.9406,
+    "baseline_std": 0.0448,
+    "shap3_mean": 0.9314,
+    "shap3_std": 0.0522,
+    "shap4_mean": 0.9038,
+    "shap4_std": 0.0561,
+    "shap4b_mean": 0.93,
+    "shap4b_std": 0.044
+  },
+  {
+    "dataset": "breast",
+    "model": "RF",
+    "baseline_mean": 0.9407,
+    "baseline_std": 0.0223,
+    "shap3_mean": 0.9378,
+    "shap3_std": 0.0203,
+    "shap4_mean": 0.9478,
+    "shap4_std": 0.0117,
+    "shap4b_mean": 0.9455,
+    "shap4b_std": 0.0167
+  }
+]

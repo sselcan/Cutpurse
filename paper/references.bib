@@ -1,0 +1,200 @@
+% =====================================================================
+%  Generic model extraction
+% =====================================================================
+@inproceedings{tramer2016stealing,
+  title     = {Stealing Machine Learning Models via Prediction {API}s},
+  author    = {Tram\`er, Florian and Zhang, Fan and Juels, Ari and Reiter, Michael K and Ristenpart, Thomas},
+  booktitle = {USENIX Security},
+  year      = {2016}
+}
+
+@inproceedings{orekondy2019knockoff,
+  title     = {Knockoff Nets: Stealing Functionality of Black-Box Models},
+  author    = {Orekondy, Tribhuvanesh and Schiele, Bernt and Fritz, Mario},
+  booktitle = {CVPR},
+  year      = {2019}
+}
+
+@inproceedings{jagielski2020high,
+  title     = {High Accuracy and High Fidelity Extraction of Neural Networks},
+  author    = {Jagielski, Matthew and Carlini, Nicholas and Berthelot, David and Kurakin, Alex and Papernot, Nicolas},
+  booktitle = {USENIX Security},
+  year      = {2020}
+}
+
+@inproceedings{papernot2017practical,
+  title     = {Practical Black-Box Attacks Against Machine Learning},
+  author    = {Papernot, Nicolas and McDaniel, Patrick and Goodfellow, Ian and Jha, Somesh and Celik, Z Berkay and Swami, Ananthram},
+  booktitle = {AsiaCCS},
+  year      = {2017}
+}
+
+@inproceedings{correia2018copycat,
+  title     = {Copycat {CNN}: Stealing Knowledge by Persuading Confession with Random Non-Labeled Data},
+  author    = {Correia-Silva, Jacson Rodrigues and Berriel, Rodrigo F and Badue, Claudine and De Souza, Alberto F and Oliveira-Santos, Thiago},
+  booktitle = {IJCNN},
+  year      = {2018}
+}
+
+@inproceedings{karmakar2023marich,
+  title     = {Marich: A Query-efficient Distributionally Equivalent Model Extraction Attack
+               using Public Data},
+  author    = {Karmakar, Pratik and Basu, Debabrota},
+  booktitle = {NeurIPS},
+  year      = {2023}
+}
+
+% Active-learning extraction: near-boundary (uncertainty/DeepFool) + diverse (k-center)
+% subset selection are the two most informative query types.
+@inproceedings{pal2020activethief,
+  title     = {{ACTIVETHIEF}: Model Extraction Using Active Learning and Unannotated Public Data},
+  author    = {Pal, Soham and Gupta, Yash and Shukla, Aditya and Kanade, Aditya and Shevade, Shirish K and Ganapathy, Vinod},
+  booktitle = {AAAI},
+  year      = {2020}
+}
+
+% =====================================================================
+%  Explanation- / attribution-guided extraction
+% =====================================================================
+@inproceedings{milli2019model,
+  title     = {Model Reconstruction from Model Explanations},
+  author    = {Milli, Smitha and Schmidt, Ludwig and Dragan, Anca D and Hardt, Moritz},
+  booktitle = {FAccT},
+  year      = {2019}
+}
+
+% FIXED: previously mis-attributed to "Luo, Yi ... Backdoor Attacks".
+% Correct paper for arXiv:2302.02162.
+@article{oksuz2024autolycus,
+  title     = {{AUTOLYCUS}: Exploiting Explainable Artificial Intelligence ({XAI})
+               for Model Extraction Attacks against Interpretable Models},
+  author    = {Oksuz, Abdullah Caglar and Halimi, Anisa and Ayday, Erman},
+  journal   = {Proceedings on Privacy Enhancing Technologies (PoPETs)},
+  volume    = {2024},
+  number    = {4},
+  year      = {2024},
+  note      = {arXiv:2302.02162}
+}
+
+% Anli Yan et al., the closest explanation-guided extraction competitor (XaMEA).
+@article{yan2023explanationleaks,
+  title     = {Explanation Leaks: Explanation-guided Model Extraction Attacks},
+  author    = {Yan, Anli and Huang, Teng and Ke, Lishan and Liu, Xiaozhang and Chen, Qi and Dong, Changyu},
+  journal   = {Information Sciences},
+  volume    = {632},
+  pages     = {269--284},
+  year      = {2023},
+  doi       = {10.1016/j.ins.2023.03.020}
+}
+
+% Data-free extraction that uses gradient explanations to train a generator.
+@inproceedings{miura2024megex,
+  title     = {{MEGEX}: Data-Free Model Extraction Attack against Gradient-Based Explainable {AI}},
+  author    = {Miura, Takayuki and Shibahara, Toshiki and Yanai, Naoto},
+  booktitle = {ACM Workshop on Secure and Trustworthy Deep Learning Systems (SecTL@AsiaCCS)},
+  pages     = {56--66},
+  year      = {2024},
+  note      = {Preliminary version: arXiv:2107.08909 (2021), with a different author list}
+}
+
+@article{quan2022amplification,
+  title     = {On the Amplification of Security and Privacy Risks by Post-hoc
+               Explanations in Machine Learning Models},
+  author    = {Quan, Pengrui and Chakraborty, Supriyo and Jeyakumar, Jeya Vikranth and Srivastava, Mani},
+  journal   = {arXiv:2206.14004},
+  year      = {2022}
+}
+
+% =====================================================================
+%  Counterfactual-based extraction (boundary-pair lineage)
+% =====================================================================
+@article{aivodji2020model,
+  title     = {Model Extraction from Counterfactual Explanations},
+  author    = {A\"ivodji, Ulrich and Bolot, Alexandre and Gambs, S\'ebastien},
+  journal   = {arXiv:2009.01884},
+  year      = {2020}
+}
+
+@inproceedings{wang2022dualcf,
+  title     = {{DualCF}: Efficient Model Extraction Attack from Counterfactual Explanations},
+  author    = {Wang, Yongjie and Qian, Hangwei and Miao, Chunyan},
+  booktitle = {ACM Conference on Fairness, Accountability, and Transparency (FAccT)},
+  year      = {2022},
+  doi       = {10.1145/3531146.3533188},
+  note      = {arXiv:2205.06504}
+}
+
+% FIXED: first author is Awa Khouna (not "Abdallah"); added co-authors + arXiv id.
+@inproceedings{khouna2025tra,
+  title     = {From Counterfactuals to Trees: Competitive Analysis of Model Extraction Attacks},
+  author    = {Khouna, Awa and Ferry, Julien and Vidal, Thibaut},
+  booktitle = {NeurIPS},
+  year      = {2025},
+  note      = {arXiv:2502.05325}
+}
+
+% FIXED: previously mis-attributed to "Biradar, Aniket".
+@article{otto2026linear,
+  title     = {Linear Model Extraction via Factual and Counterfactual Queries},
+  author    = {Otto, Daan and Kurtz, Jannis and den Hertog, Dick and Birbil, Ilker},
+  journal   = {arXiv:2602.09748},
+  year      = {2026}
+}
+
+% =====================================================================
+%  Privacy implications of explanations / downstream attacks
+% =====================================================================
+@article{nguyen2024survey,
+  title     = {A Survey of Privacy-Preserving Model Explanations: Privacy Risks,
+               Attacks, and Countermeasures},
+  author    = {Nguyen, Thanh Tam and Huynh, Thanh Trung and Ren, Zhao and
+               Nguyen, Thanh Toan and Nguyen, Phi Le and Yin, Hongzhi and Nguyen, Quoc Viet Hung},
+  journal   = {arXiv:2404.00673},
+  year      = {2024}
+}
+
+% FIXED: was placeholder "Anonymous". Real arXiv:2602.03611.
+@article{ezzeddine2026membership,
+  title     = {Explanations Leak: Membership Inference with Differential Privacy
+               and Active Learning Defense},
+  author    = {Ezzeddine, Fatima and Zammar, Osama and Giordano, Silvia and Ayoub, Omran},
+  journal   = {arXiv:2602.03611},
+  year      = {2026}
+}
+
+% FIXED: was placeholder "Anonymous". Real arXiv:2602.18934. Same authors as Autolycus.
+@article{oksuz2026lomime,
+  title     = {{LoMime}: Query-Efficient Membership Inference using Model Extraction
+               in Label-Only Settings},
+  author    = {Oksuz, Abdullah Caglar and Halimi, Anisa and Ayday, Erman},
+  journal   = {arXiv:2602.18934},
+  year      = {2026}
+}
+
+% =====================================================================
+%  SHAP / explanation tooling
+% =====================================================================
+@inproceedings{lundberg2017shap,
+  title     = {A Unified Approach to Interpreting Model Predictions},
+  author    = {Lundberg, Scott M and Lee, Su-In},
+  booktitle = {NeurIPS},
+  year      = {2017}
+}
+
+@article{lundberg2020treeshap,
+  title     = {From Local Explanations to Global Understanding with Explainable {AI} for Trees},
+  author    = {Lundberg, Scott M and Erion, Gabriel and Chen, Hugh and DeGrave, Alex and Prutkin, Jordan M and Nair, Bala and Katz, Ronit and Himmelfarb, Jonathan and Bansal, Nisha and Lee, Su-In},
+  journal   = {Nature Machine Intelligence},
+  year      = {2020}
+}
+
+% Active-learning model extraction; one of the non-explanation baselines Autolycus benchmarks against.
+@inproceedings{chandrasekaran2020active,
+  title     = {Exploring Connections Between Active Learning and Model Extraction},
+  author    = {Chandrasekaran, Varun and Chaudhuri, Kamalika and Giacomelli, Irene and
+               Jha, Somesh and Yan, Songbai},
+  booktitle = {29th USENIX Security Symposium (USENIX Security 20)},
+  publisher = {USENIX Association},
+  year      = {2020},
+  note      = {arXiv:1811.02054}
+}

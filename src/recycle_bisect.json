@@ -1,0 +1,362 @@
+[
+  {
+    "dataset": "adult",
+    "model": "LR",
+    "Q": 100,
+    "baseline": 0.8671,
+    "shap3": 0.7928,
+    "shap3_rec": 0.8026,
+    "rec_gain": 0.0098,
+    "rec_vs_base": -0.0645
+  },
+  {
+    "dataset": "adult",
+    "model": "LR",
+    "Q": 250,
+    "baseline": 0.8533,
+    "shap3": 0.8561,
+    "shap3_rec": 0.8561,
+    "rec_gain": 0.0,
+    "rec_vs_base": 0.0028
+  },
+  {
+    "dataset": "adult",
+    "model": "LR",
+    "Q": 500,
+    "baseline": 0.8418,
+    "shap3": 0.8844,
+    "shap3_rec": 0.8609,
+    "rec_gain": -0.0235,
+    "rec_vs_base": 0.0191
+  },
+  {
+    "dataset": "adult",
+    "model": "NB",
+    "Q": 100,
+    "baseline": 0.9396,
+    "shap3": 0.932,
+    "shap3_rec": 0.9516,
+    "rec_gain": 0.0196,
+    "rec_vs_base": 0.012
+  },
+  {
+    "dataset": "adult",
+    "model": "NB",
+    "Q": 250,
+    "baseline": 0.9348,
+    "shap3": 0.9471,
+    "shap3_rec": 0.9534,
+    "rec_gain": 0.0063,
+    "rec_vs_base": 0.0186
+  },
+  {
+    "dataset": "adult",
+    "model": "NB",
+    "Q": 500,
+    "baseline": 0.9317,
+    "shap3": 0.9495,
+    "shap3_rec": 0.9507,
+    "rec_gain": 0.0012,
+    "rec_vs_base": 0.019
+  },
+  {
+    "dataset": "adult",
+    "model": "KNN",
+    "Q": 100,
+    "baseline": 0.8302,
+    "shap3": 0.7075,
+    "shap3_rec": 0.7496,
+    "rec_gain": 0.0421,
+    "rec_vs_base": -0.0806
+  },
+  {
+    "dataset": "adult",
+    "model": "KNN",
+    "Q": 250,
+    "baseline": 0.8411,
+    "shap3": 0.8436,
+    "shap3_rec": 0.8543,
+    "rec_gain": 0.0107,
+    "rec_vs_base": 0.0132
+  },
+  {
+    "dataset": "adult",
+    "model": "KNN",
+    "Q": 500,
+    "baseline": 0.8444,
+    "shap3": 0.8468,
+    "shap3_rec": 0.8612,
+    "rec_gain": 0.0144,
+    "rec_vs_base": 0.0168
+  },
+  {
+    "dataset": "adult",
+    "model": "DT",
+    "Q": 100,
+    "baseline": 0.7928,
+    "shap3": 0.7779,
+    "shap3_rec": 0.7869,
+    "rec_gain": 0.009,
+    "rec_vs_base": -0.0059
+  },
+  {
+    "dataset": "adult",
+    "model": "DT",
+    "Q": 250,
+    "baseline": 0.8289,
+    "shap3": 0.8072,
+    "shap3_rec": 0.8003,
+    "rec_gain": -0.0069,
+    "rec_vs_base": -0.0286
+  },
+  {
+    "dataset": "adult",
+    "model": "DT",
+    "Q": 500,
+    "baseline": 0.8318,
+    "shap3": 0.8335,
+    "shap3_rec": 0.8302,
+    "rec_gain": -0.0033,
+    "rec_vs_base": -0.0016
+  },
+  {
+    "dataset": "mushroom",
+    "model": "LR",
+    "Q": 100,
+    "baseline": 0.7456,
+    "shap3": 0.7644,
+    "shap3_rec": 0.7786,
+    "rec_gain": 0.0142,
+    "rec_vs_base": 0.033
+  },
+  {
+    "dataset": "mushroom",
+    "model": "LR",
+    "Q": 250,
+    "baseline": 0.7276,
+    "shap3": 0.7874,
+    "shap3_rec": 0.8371,
+    "rec_gain": 0.0497,
+    "rec_vs_base": 0.1095
+  },
+  {
+    "dataset": "mushroom",
+    "model": "LR",
+    "Q": 500,
+    "baseline": 0.7028,
+    "shap3": 0.7982,
+    "shap3_rec": 0.858,
+    "rec_gain": 0.0598,
+    "rec_vs_base": 0.1552
+  },
+  {
+    "dataset": "mushroom",
+    "model": "NB",
+    "Q": 100,
+    "baseline": 0.8583,
+    "shap3": 0.8485,
+    "shap3_rec": 0.8511,
+    "rec_gain": 0.0026,
+    "rec_vs_base": -0.0072
+  },
+  {
+    "dataset": "mushroom",
+    "model": "NB",
+    "Q": 250,
+    "baseline": 0.8548,
+    "shap3": 0.8778,
+    "shap3_rec": 0.8426,
+    "rec_gain": -0.0352,
+    "rec_vs_base": -0.0122
+  },
+  {
+    "dataset": "mushroom",
+    "model": "NB",
+    "Q": 500,
+    "baseline": 0.8637,
+    "shap3": 0.8856,
+    "shap3_rec": 0.8513,
+    "rec_gain": -0.0343,
+    "rec_vs_base": -0.0124
+  },
+  {
+    "dataset": "mushroom",
+    "model": "KNN",
+    "Q": 100,
+    "baseline": 0.7875,
+    "shap3": 0.7775,
+    "shap3_rec": 0.7934,
+    "rec_gain": 0.0159,
+    "rec_vs_base": 0.0059
+  },
+  {
+    "dataset": "mushroom",
+    "model": "KNN",
+    "Q": 250,
+    "baseline": 0.8124,
+    "shap3": 0.8135,
+    "shap3_rec": 0.8127,
+    "rec_gain": -0.0008,
+    "rec_vs_base": 0.0003
+  },
+  {
+    "dataset": "mushroom",
+    "model": "KNN",
+    "Q": 500,
+    "baseline": 0.817,
+    "shap3": 0.8212,
+    "shap3_rec": 0.8502,
+    "rec_gain": 0.029,
+    "rec_vs_base": 0.0332
+  },
+  {
+    "dataset": "mushroom",
+    "model": "DT",
+    "Q": 100,
+    "baseline": 0.8952,
+    "shap3": 0.8261,
+    "shap3_rec": 0.8414,
+    "rec_gain": 0.0153,
+    "rec_vs_base": -0.0538
+  },
+  {
+    "dataset": "mushroom",
+    "model": "DT",
+    "Q": 250,
+    "baseline": 0.922,
+    "shap3": 0.8896,
+    "shap3_rec": 0.9034,
+    "rec_gain": 0.0138,
+    "rec_vs_base": -0.0186
+  },
+  {
+    "dataset": "mushroom",
+    "model": "DT",
+    "Q": 500,
+    "baseline": 0.9346,
+    "shap3": 0.9378,
+    "shap3_rec": 0.9612,
+    "rec_gain": 0.0234,
+    "rec_vs_base": 0.0266
+  },
+  {
+    "dataset": "breast",
+    "model": "LR",
+    "Q": 100,
+    "baseline": 0.9471,
+    "shap3": 0.86,
+    "shap3_rec": 0.9153,
+    "rec_gain": 0.0553,
+    "rec_vs_base": -0.0318
+  },
+  {
+    "dataset": "breast",
+    "model": "LR",
+    "Q": 250,
+    "baseline": 0.9235,
+    "shap3": 0.9482,
+    "shap3_rec": 0.9424,
+    "rec_gain": -0.0058,
+    "rec_vs_base": 0.0189
+  },
+  {
+    "dataset": "breast",
+    "model": "LR",
+    "Q": 500,
+    "baseline": 0.9341,
+    "shap3": 0.9424,
+    "shap3_rec": 0.9353,
+    "rec_gain": -0.0071,
+    "rec_vs_base": 0.0012
+  },
+  {
+    "dataset": "breast",
+    "model": "NB",
+    "Q": 100,
+    "baseline": 0.9306,
+    "shap3": 0.9588,
+    "shap3_rec": 0.9765,
+    "rec_gain": 0.0177,
+    "rec_vs_base": 0.0459
+  },
+  {
+    "dataset": "breast",
+    "model": "NB",
+    "Q": 250,
+    "baseline": 0.9588,
+    "shap3": 0.9812,
+    "shap3_rec": 0.9776,
+    "rec_gain": -0.0036,
+    "rec_vs_base": 0.0188
+  },
+  {
+    "dataset": "breast",
+    "model": "NB",
+    "Q": 500,
+    "baseline": 0.9188,
+    "shap3": 0.9729,
+    "shap3_rec": 0.9753,
+    "rec_gain": 0.0024,
+    "rec_vs_base": 0.0565
+  },
+  {
+    "dataset": "breast",
+    "model": "KNN",
+    "Q": 100,
+    "baseline": 0.8365,
+    "shap3": 0.8376,
+    "shap3_rec": 0.8482,
+    "rec_gain": 0.0106,
+    "rec_vs_base": 0.0117
+  },
+  {
+    "dataset": "breast",
+    "model": "KNN",
+    "Q": 250,
+    "baseline": 0.8353,
+    "shap3": 0.8376,
+    "shap3_rec": 0.8847,
+    "rec_gain": 0.0471,
+    "rec_vs_base": 0.0494
+  },
+  {
+    "dataset": "breast",
+    "model": "KNN",
+    "Q": 500,
+    "baseline": 0.8435,
+    "shap3": 0.8212,
+    "shap3_rec": 0.8588,
+    "rec_gain": 0.0376,
+    "rec_vs_base": 0.0153
+  },
+  {
+    "dataset": "breast",
+    "model": "DT",
+    "Q": 100,
+    "baseline": 0.8624,
+    "shap3": 0.9,
+    "shap3_rec": 0.9318,
+    "rec_gain": 0.0318,
+    "rec_vs_base": 0.0694
+  },
+  {
+    "dataset": "breast",
+    "model": "DT",
+    "Q": 250,
+    "baseline": 0.9141,
+    "shap3": 0.9271,
+    "shap3_rec": 0.9435,
+    "rec_gain": 0.0164,
+    "rec_vs_base": 0.0294
+  },
+  {
+    "dataset": "breast",
+    "model": "DT",
+    "Q": 500,
+    "baseline": 0.9447,
+    "shap3": 0.9647,
+    "shap3_rec": 0.9588,
+    "rec_gain": -0.0059,
+    "rec_vs_base": 0.0141
+  }
+]

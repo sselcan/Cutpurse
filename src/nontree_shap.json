@@ -1,0 +1,110 @@
+[
+  {
+    "dataset": "adult",
+    "model": "LR",
+    "baseline": 0.8442,
+    "shap3": 0.8461,
+    "s4b_TT": 0.862,
+    "s4b_TF": 0.8958,
+    "s4b_FT": 0.8546,
+    "s4b_FF": 0.891,
+    "flipGain": 0.0061,
+    "traverseGain": -0.0351
+  },
+  {
+    "dataset": "adult",
+    "model": "NB",
+    "baseline": 0.936,
+    "shap3": 0.9648,
+    "s4b_TT": 0.9589,
+    "s4b_TF": 0.9727,
+    "s4b_FT": 0.9674,
+    "s4b_FF": 0.97,
+    "flipGain": -0.0029,
+    "traverseGain": -0.0082
+  },
+  {
+    "dataset": "adult",
+    "model": "KNN",
+    "baseline": 0.8587,
+    "shap3": 0.8719,
+    "s4b_TT": 0.867,
+    "s4b_TF": 0.861,
+    "s4b_FT": 0.8658,
+    "s4b_FF": 0.8598,
+    "flipGain": 0.0012,
+    "traverseGain": 0.006
+  },
+  {
+    "dataset": "mushroom",
+    "model": "LR",
+    "baseline": 0.7442,
+    "shap3": 0.8613,
+    "s4b_TT": 0.9035,
+    "s4b_TF": 0.9195,
+    "s4b_FT": 0.9204,
+    "s4b_FF": 0.9526,
+    "flipGain": -0.025,
+    "traverseGain": -0.0241
+  },
+  {
+    "dataset": "mushroom",
+    "model": "NB",
+    "baseline": 0.8468,
+    "shap3": 0.8631,
+    "s4b_TT": 0.8558,
+    "s4b_TF": 0.8453,
+    "s4b_FT": 0.8885,
+    "s4b_FF": 0.8565,
+    "flipGain": -0.0219,
+    "traverseGain": 0.0212
+  },
+  {
+    "dataset": "mushroom",
+    "model": "KNN",
+    "baseline": 0.7971,
+    "shap3": 0.8012,
+    "s4b_TT": 0.8127,
+    "s4b_TF": 0.7989,
+    "s4b_FT": 0.8091,
+    "s4b_FF": 0.8204,
+    "flipGain": -0.009,
+    "traverseGain": 0.0012
+  },
+  {
+    "dataset": "breast",
+    "model": "LR",
+    "baseline": 0.9506,
+    "shap3": 0.9518,
+    "s4b_TT": 0.9494,
+    "s4b_TF": 0.9482,
+    "s4b_FT": 0.9247,
+    "s4b_FF": 0.9353,
+    "flipGain": 0.0188,
+    "traverseGain": -0.0047
+  },
+  {
+    "dataset": "breast",
+    "model": "NB",
+    "baseline": 0.8471,
+    "shap3": 0.9141,
+    "s4b_TT": 0.8706,
+    "s4b_TF": NaN,
+    "s4b_FT": NaN,
+    "s4b_FF": NaN,
+    "flipGain": NaN,
+    "traverseGain": NaN
+  },
+  {
+    "dataset": "breast",
+    "model": "KNN",
+    "baseline": 0.8871,
+    "shap3": 0.9435,
+    "s4b_TT": 0.8882,
+    "s4b_TF": 0.8812,
+    "s4b_FT": 0.8624,
+    "s4b_FF": 0.8812,
+    "flipGain": 0.0129,
+    "traverseGain": -0.0059
+  }
+]

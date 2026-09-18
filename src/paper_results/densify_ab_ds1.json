@@ -1,0 +1,67 @@
+[
+  {
+    "dataset": "crop",
+    "model": "lr",
+    "Q": 1000,
+    "base": 0.8055,
+    "nodense": 0.8592,
+    "dense": 0.8451,
+    "d_dense_nod": -0.0141,
+    "p_dense_nod": 0.1934,
+    "d_dense_base": 0.0396,
+    "p_dense_base": 0.1055,
+    "secs": 5148.0
+  },
+  {
+    "dataset": "crop",
+    "model": "nb",
+    "Q": 1000,
+    "base": 0.8196,
+    "nodense": 0.7831,
+    "dense": 0.7808,
+    "d_dense_nod": -0.0024,
+    "p_dense_nod": 0.4922,
+    "d_dense_base": -0.0388,
+    "p_dense_base": 0.0273,
+    "secs": 3915.9
+  },
+  {
+    "dataset": "crop",
+    "model": "knn",
+    "Q": 1000,
+    "base": 0.7224,
+    "nodense": 0.6949,
+    "dense": 0.7024,
+    "d_dense_nod": 0.0075,
+    "p_dense_nod": 0.0204,
+    "d_dense_base": -0.02,
+    "p_dense_base": 0.0371,
+    "secs": 6017.4
+  },
+  {
+    "dataset": "crop",
+    "model": "dt",
+    "Q": 1000,
+    "base": 0.7664,
+    "nodense": 0.8771,
+    "dense": 0.87,
+    "d_dense_nod": -0.0071,
+    "p_dense_nod": 0.4922,
+    "d_dense_base": 0.1036,
+    "p_dense_base": 0.0059,
+    "secs": 3032.5
+  },
+  {
+    "dataset": "crop",
+    "model": "rdf",
+    "Q": 1000,
+    "base": 0.8121,
+    "nodense": 0.876,
+    "dense": 0.8739,
+    "d_dense_nod": -0.0021,
+    "p_dense_nod": 0.4922,
+    "d_dense_base": 0.0618,
+    "p_dense_base": 0.0039,
+    "secs": 6302.8
+  }
+]
