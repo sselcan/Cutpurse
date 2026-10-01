@@ -38,3 +38,6 @@ src/results*.txt
 *.log
 __pycache__/
 .DS_Store
+src/*.json
+src/*.png
+figures/

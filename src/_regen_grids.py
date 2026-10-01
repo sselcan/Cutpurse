@@ -4,15 +4,17 @@ paper includes, directly into paper/figures/. Reads the existing sweep JSONs in 
 
     python _regen_grids.py
 """
-import json, glob
+import json, glob, os
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from pathlib import Path
 
-FIGP = Path('/Users/sesame/FaithfulDefense/paper/figures')
-RES = Path('/Users/sesame/FaithfulDefense/src/paper_results')
+_HERE = Path(__file__).resolve().parent
+FIGP = Path(os.environ.get('CUTPURSE_FIGURES', _HERE.parent / 'figures'))
+RES = _HERE / 'paper_results'
+FIGP.mkdir(parents=True, exist_ok=True)
 YLIM = (0.4, 1.0)   # uniform across every subplot/grid
 DATASET_ORDER = ['crop', 'adult', 'breast', 'nursery', 'mushroom']
 MODELS_ALL = ['LR', 'NB', 'KNN', 'DT', 'RF']   # display order

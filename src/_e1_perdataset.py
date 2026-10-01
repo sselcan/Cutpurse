@@ -6,15 +6,18 @@ Top budget, mean over the S=10 seed sets. Writes paper/figures/decomposition_per
 
     python _e1_perdataset.py
 """
-import json, glob
+import json, glob, os
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from pathlib import Path
 
-RES = Path('/Users/sesame/FaithfulDefense/src/paper_results')
-OUT = Path('/Users/sesame/FaithfulDefense/paper/figures/decomposition_per_dataset.png')
+_HERE = Path(__file__).resolve().parent
+RES = _HERE / 'paper_results'
+_FIGP = Path(os.environ.get('CUTPURSE_FIGURES', _HERE.parent / 'figures'))
+_FIGP.mkdir(parents=True, exist_ok=True)
+OUT = _FIGP / 'decomposition_per_dataset.png'
 DATASET_ORDER = ['crop', 'adult', 'breast', 'nursery', 'mushroom']
 MODELS = ['lr', 'nb', 'knn', 'dt', 'rdf']
 DISP = {'lr': 'LR', 'nb': 'NB', 'knn': 'KNN', 'dt': 'DT', 'rdf': 'RF'}

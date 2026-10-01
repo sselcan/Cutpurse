@@ -28,6 +28,16 @@ from sklearn.preprocessing import StandardScaler
 import os, sys
 from matplotlib import cm
 
+# Root for the CSV-backed datasets (crop, nursery, mushroom). Defaults to ../data relative to this
+# file; override with the CUTPURSE_DATA environment variable to point elsewhere.
+DATA_ROOT = os.environ.get(
+    'CUTPURSE_DATA', os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data'))
+
+
+def data_path(*parts):
+    return os.path.join(DATA_ROOT, *parts)
+
+
 #for coupla-based sampling
 # from sdv.metadata import SingleTableMetadata
 # from sdv.single_table import GaussianCopulaSynthesizer
@@ -3065,7 +3075,7 @@ def load_dataset(which_dataset, seed=None):
         #epsilon_set = [1]*n_features   
     elif which_dataset == 1:
         n_crops = 17
-        crop = pd.read_csv('/Users/sesame/AUTOLYCUS/data/crop/Crop_recommendation.csv')  # Dataset 2
+        crop = pd.read_csv(data_path('crop', 'Crop_recommendation.csv'))  # Dataset 2
         #crop = crop[0:(n_crops*100)]
         crop.drop(crop.index[1800:1900], inplace=True)
         crop.drop(crop.index[1400:1500], inplace=True)
@@ -3146,7 +3156,7 @@ def load_dataset(which_dataset, seed=None):
         X = pd.DataFrame(X, columns=features)
         feature_ranges = [(X[features[i]].min(), X[features[i]].max()) for i in range(n_features)]
     elif which_dataset == 4:
-        nursery = pd.read_csv('/Users/sesame/AUTOLYCUS/data/nursery/nursery.csv')
+        nursery = pd.read_csv(data_path('nursery', 'nursery.csv'))
         nursery[nursery == '?'] = np.nan
         #nursery[nursery['final evaluation']>=2]
 
@@ -3177,7 +3187,7 @@ def load_dataset(which_dataset, seed=None):
         dataset_name = 'nursery'
         feature_ranges = [(X[features[i]].min(), X[features[i]].max()) for i in range(n_features)]
     elif which_dataset == 5:
-        mushroom = pd.read_csv('/Users/sesame/AUTOLYCUS/data/mushroom/mushroom_data.csv')
+        mushroom = pd.read_csv(data_path('mushroom', 'mushroom_data.csv'))
         mushroom[mushroom == '?'] = np.nan
         mushroom = mushroom.drop(mushroom.columns[16], axis=1)
 
@@ -3206,10 +3216,10 @@ def load_dataset(which_dataset, seed=None):
         dataset_name = 'mushroom'
         feature_ranges = [(X[features[i]].min(), X[features[i]].max()) for i in range(n_features)]
     elif which_dataset == 6:
-        normal = pd.read_csv("/Users/sesame/AUTOLYCUS/data/bctcga/BC-TCGA-Normal.txt", sep="\t")
+        normal = pd.read_csv(data_path('bctcga', 'BC-TCGA-Normal.txt'), sep="\t")
         normal = normal.drop(columns=["Hybridization REF"], errors="ignore").T
 
-        tumor = pd.read_csv("/Users/sesame/AUTOLYCUS/data/bctcga/BC-TCGA-Tumor.txt", sep="\t")
+        tumor = pd.read_csv(data_path('bctcga', 'BC-TCGA-Tumor.txt'), sep="\t")
         tumor = tumor.drop(columns=["Hybridization REF"], errors="ignore").T
 
         normal['label'] = 0
