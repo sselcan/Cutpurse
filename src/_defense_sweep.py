@@ -56,9 +56,13 @@ def _fidelity(mname, V, P, t_model, Xt, n_classes):
     return float(np.nanmean(fids)) if fids else float('nan')
 
 
-def run_ds(ds, models=DEFAULT_MODELS, out_dir='paper_results'):
+def run_ds(ds, models=DEFAULT_MODELS, out_dir='paper_results', eps_override=None):
+    # eps_override=1.0 matches ODYSSEUS's Phase-3 step to the baselines'. traverse_explanations_LIME
+    # hardcodes epsilon=1 and ignores epsilon_set, while LIME3 steps by epsilon_set, so the default
+    # curves are not step-matched (8x on crop, 30x on pendigits). Writes a separate file.
     os.makedirs(out_dir, exist_ok=True)
-    path = os.path.join(out_dir, f'defense_sweep_ds{ds}.json')
+    suffix = '' if eps_override is None else '_eps1'
+    path = os.path.join(out_dir, f'defense_sweep_ds{ds}{suffix}.json')
     warnings.filterwarnings('ignore')
     q_list = list(Q_LISTS[ds])
     rows = []; t0 = time.time()
@@ -95,7 +99,7 @@ def run_ds(ds, models=DEFAULT_MODELS, out_dir='paper_results'):
                                 mega[0][0], expl_aux, t_model, lb, ub, Q, NFE, a2, mname,
                                 X_train, y_train, use_diverse=True, diverse_method='manifold',
                                 div_cap=DIV_CAP, feature_select='random', use_threshold=True,
-                                use_explanation=False)
+                                use_explanation=False, eps_override=eps_override)
                         fid[m][arm][Q].append(_fidelity(mname, V, P, t_model, Xt, n_classes))
                     except Exception:
                         traceback.print_exc(); fid[m][arm][Q].append(float('nan'))
@@ -105,6 +109,7 @@ def run_ds(ds, models=DEFAULT_MODELS, out_dir='paper_results'):
         mname = MODELS.get(m, str(m)).lower()
         fidm = fid[m]
         row = {'dataset': DATASETS[ds], 'model': mname, 'q_list': q_list, 'hms': NSPLIT,
+               'eps_override': eps_override,
                'n_eval': n_eval, 'protocol': 'multi-split, target retrained per split',
                'check_at_Q': Q_BY_DS.get(ds)}
         for a in ARMS:
@@ -135,10 +140,13 @@ if __name__ == '__main__':
     ap.add_argument('--ds', type=int, required=True)
     ap.add_argument('--models', type=str, default=','.join(map(str, DEFAULT_MODELS)))
     ap.add_argument('--out', type=str, default='paper_results')
+    ap.add_argument('--eps1', action='store_true',
+                    help="match ODYSSEUS's Phase-3 step to the baselines' epsilon=1")
     ap.add_argument('--qlist', type=str, default=None,
                     help='comma-separated budgets, overrides Q_LISTS for this dataset')
     a = ap.parse_args()
     if a.qlist:
         Q_LISTS[a.ds] = tuple(int(x) for x in a.qlist.split(','))
         Q_BY_DS[a.ds] = Q_LISTS[a.ds][-1]
-    run_ds(a.ds, models=[int(x) for x in a.models.split(',') if x != ''], out_dir=a.out)
+    run_ds(a.ds, models=[int(x) for x in a.models.split(',') if x != ''], out_dir=a.out,
+           eps_override=(1.0 if a.eps1 else None))

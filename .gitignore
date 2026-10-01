@@ -23,3 +23,18 @@ paper/*.toc
 
 # Note: experiment logs (src/*.log, _*.log) are deliberately NOT ignored here —
 # decide per file whether a run log belongs in the repo.
+paper/
+satml paper/
+.venv/
+results/
+surrogate_results/
+MSC_PROJECT.md
+src/DEVELOPMENT_NOTES.md
+src/SPEC_*.md
+src/SESSION_NOTES_*.md
+src/*.ipynb
+src/project_status_slides*.html
+src/results*.txt
+*.log
+__pycache__/
+.DS_Store

@@ -1,103 +1,0 @@
-<IPython.core.display.HTML object>
-1 1 1 1 1 2 1 1 1 1 2 1 Dataset name in traverse_explanations_SHAP3: nursery
-  0%|          | 0/15 [00:00<?, ?it/s]100%|██████████| 15/15 [00:00<00:00, 832.69it/s]
-1 Dataset name in traverse_explanations_SHAP3: nursery
-  0%|          | 0/15 [00:00<?, ?it/s]100%|██████████| 15/15 [00:00<00:00, 730.92it/s]
-1 2 Dataset name in traverse_explanations_SHAP3: nursery
-  0%|          | 0/15 [00:00<?, ?it/s]100%|██████████| 15/15 [00:00<00:00, 840.21it/s]
-1 Dataset name in traverse_explanations_SHAP3: nursery
-  0%|          | 0/15 [00:00<?, ?it/s]100%|██████████| 15/15 [00:00<00:00, 735.62it/s]
-1 2 Dataset name in traverse_explanations_SHAP3: nursery
-  0%|          | 0/15 [00:00<?, ?it/s]100%|██████████| 15/15 [00:00<00:00, 746.82it/s]
-1 Dataset name in traverse_explanations_SHAP3: nursery
-  0%|          | 0/15 [00:00<?, ?it/s]100%|██████████| 15/15 [00:00<00:00, 727.39it/s]
-1 2 Dataset name in traverse_explanations_SHAP3: nursery
-  0%|          | 0/15 [00:00<?, ?it/s]100%|██████████| 15/15 [00:00<00:00, 694.02it/s]
-1 2 Dataset name in traverse_explanations_SHAP3: nursery
-  0%|          | 0/15 [00:00<?, ?it/s]100%|██████████| 15/15 [00:00<00:00, 730.75it/s]
-1 Dataset name in traverse_explanations_SHAP3: nursery
-  0%|          | 0/15 [00:00<?, ?it/s]100%|██████████| 15/15 [00:00<00:00, 708.89it/s]
-1 2 Dataset name in traverse_explanations_SHAP3: nursery
-  0%|          | 0/15 [00:00<?, ?it/s]100%|██████████| 15/15 [00:00<00:00, 732.25it/s]
-1 2 Dataset name in traverse_explanations_SHAP3: nursery
-  0%|          | 0/15 [00:00<?, ?it/s]100%|██████████| 15/15 [00:00<00:00, 855.48it/s]
-1 2 Dataset name in traverse_explanations_SHAP3: nursery
-  0%|          | 0/15 [00:00<?, ?it/s]100%|██████████| 15/15 [00:00<00:00, 704.52it/s]
-1 2 Dataset name in traverse_explanations_SHAP3: nursery
-  0%|          | 0/15 [00:00<?, ?it/s]100%|██████████| 15/15 [00:00<00:00, 829.46it/s]
-1 2 Dataset name in traverse_explanations_SHAP3: nursery
-  0%|          | 0/15 [00:00<?, ?it/s]100%|██████████| 15/15 [00:00<00:00, 747.83it/s]
-1 2 Dataset name in traverse_explanations_SHAP3: nursery
-  0%|          | 0/15 [00:00<?, ?it/s]100%|██████████| 15/15 [00:00<00:00, 745.64it/s]
-1 2 3 Dataset name in traverse_explanations_SHAP3: nursery
-  0%|          | 0/15 [00:00<?, ?it/s]100%|██████████| 15/15 [00:00<00:00, 675.01it/s]
-1 2 Dataset name in traverse_explanations_SHAP3: nursery
-  0%|          | 0/15 [00:00<?, ?it/s]100%|██████████| 15/15 [00:00<00:00, 700.83it/s]
-1 2 Dataset name in traverse_explanations_SHAP3: nursery
-  0%|          | 0/15 [00:00<?, ?it/s]100%|██████████| 15/15 [00:00<00:00, 764.99it/s]
-1 Dataset name in traverse_explanations_SHAP3: nursery
-  0%|          | 0/15 [00:00<?, ?it/s]100%|██████████| 15/15 [00:00<00:00, 671.84it/s]
-1 2 Dataset name in traverse_explanations_SHAP3: nursery
-  0%|          | 0/15 [00:00<?, ?it/s]100%|██████████| 15/15 [00:00<00:00, 751.46it/s]
-1 2 <IPython.core.display.HTML object>
-1 1 1 1 1 1 2 1 1 1 2 1 Dataset name in traverse_explanations_SHAP3: nursery
-  0%|          | 0/15 [00:00<?, ?it/s]100%|██████████| 15/15 [00:00<00:00, 660.76it/s]
-1 2 Dataset name in traverse_explanations_SHAP3: nursery
-  0%|          | 0/15 [00:00<?, ?it/s]100%|██████████| 15/15 [00:00<00:00, 683.44it/s]
-1 2 Dataset name in traverse_explanations_SHAP3: nursery
-  0%|          | 0/15 [00:00<?, ?it/s]100%|██████████| 15/15 [00:00<00:00, 729.04it/s]
-1 2 Dataset name in traverse_explanations_SHAP3: nursery
-  0%|          | 0/15 [00:00<?, ?it/s]100%|██████████| 15/15 [00:00<00:00, 691.63it/s]
-1 2 Dataset name in traverse_explanations_SHAP3: nursery
-  0%|          | 0/15 [00:00<?, ?it/s]100%|██████████| 15/15 [00:00<00:00, 735.80it/s]
-1 2 Dataset name in traverse_explanations_SHAP3: nursery
-  0%|          | 0/15 [00:00<?, ?it/s]100%|██████████| 15/15 [00:00<00:00, 733.28it/s]
-1 2 Dataset name in traverse_explanations_SHAP3: nursery
-  0%|          | 0/15 [00:00<?, ?it/s]100%|██████████| 15/15 [00:00<00:00, 678.82it/s]
-1 2 Dataset name in traverse_explanations_SHAP3: nursery
-  0%|          | 0/15 [00:00<?, ?it/s]100%|██████████| 15/15 [00:00<00:00, 775.55it/s]
-1 2 Dataset name in traverse_explanations_SHAP3: nursery
-  0%|          | 0/15 [00:00<?, ?it/s]100%|██████████| 15/15 [00:00<00:00, 657.70it/s]
-1 2 Dataset name in traverse_explanations_SHAP3: nursery
-  0%|          | 0/15 [00:00<?, ?it/s]100%|██████████| 15/15 [00:00<00:00, 702.51it/s]
-1 Dataset name in traverse_explanations_SHAP3: nursery
-  0%|          | 0/15 [00:00<?, ?it/s]100%|██████████| 15/15 [00:00<00:00, 660.74it/s]
-1 2 3 Dataset name in traverse_explanations_SHAP3: nursery
-  0%|          | 0/15 [00:00<?, ?it/s]100%|██████████| 15/15 [00:00<00:00, 699.14it/s]
-1 2 Dataset name in traverse_explanations_SHAP3: nursery
-  0%|          | 0/15 [00:00<?, ?it/s]100%|██████████| 15/15 [00:00<00:00, 741.77it/s]
-1 2 Dataset name in traverse_explanations_SHAP3: nursery
-  0%|          | 0/15 [00:00<?, ?it/s]100%|██████████| 15/15 [00:00<00:00, 676.62it/s]
-1 2 3 Dataset name in traverse_explanations_SHAP3: nursery
-  0%|          | 0/15 [00:00<?, ?it/s]100%|██████████| 15/15 [00:00<00:00, 730.77it/s]
-1 2 Dataset name in traverse_explanations_SHAP3: nursery
-  0%|          | 0/15 [00:00<?, ?it/s]100%|██████████| 15/15 [00:00<00:00, 712.02it/s]
-1 2 Dataset name in traverse_explanations_SHAP3: nursery
-  0%|          | 0/15 [00:00<?, ?it/s]100%|██████████| 15/15 [00:00<00:00, 659.92it/s]
-1 2 3 Dataset name in traverse_explanations_SHAP3: nursery
-  0%|          | 0/15 [00:00<?, ?it/s]100%|██████████| 15/15 [00:00<00:00, 720.07it/s]
-1 2 Dataset name in traverse_explanations_SHAP3: nursery
-  0%|          | 0/15 [00:00<?, ?it/s]100%|██████████| 15/15 [00:00<00:00, 642.98it/s]
-1 2 3 Dataset name in traverse_explanations_SHAP3: nursery
-  0%|          | 0/15 [00:00<?, ?it/s]100%|██████████| 15/15 [00:00<00:00, 719.71it/s]
-1 2 ====================================================================================
-nursery/lr: diverse vs boundary decomposition  (gap = agreed - disagreed; higher=better)
-====================================================================================
-seedarm                 gap  fidelity  disagreed  neg-sets
-----------------------------------------------------------
-   0base            -0.0412    0.7915     0.7950      7/10
-   0shap3_nodiv     +0.0458    0.9052     0.7181      3/10
-   0shap3           +0.1271    0.8997     0.6492      1/10
-    -> bisection    +0.0870   +0.1137              (nodiv-base)
-    -> diverse      +0.0813   -0.0055              (shap3-nodiv)
-----------------------------------------------------------
-   1base            -0.0397    0.7761     0.7934      7/10
-   1shap3_nodiv     +0.0227    0.8915     0.7427      4/10
-   1shap3           +0.0828    0.9288     0.6866      2/10
-    -> bisection    +0.0624   +0.1154              (nodiv-base)
-    -> diverse      +0.0601   +0.0373              (shap3-nodiv)
-----------------------------------------------------------
-
-Whichever contribution (bisection vs diverse) carries the gap-flip / fidelity lift is the
-half doing the coverage fix. Large 'diverse' -> Goal 2; large 'bisection' -> Goal 1.
-Wrote decompose_nursery.json

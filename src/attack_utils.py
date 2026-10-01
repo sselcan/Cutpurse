@@ -140,7 +140,12 @@ def sample_set_generation(dataset, n_classes, n_samples_per_class):  # Make sure
 
 def traverse_explanations_LIME(sample_set, explainer, model, n_visits_lb, n_visits_ub, upper_limit, n_f_e, args2,
                                feature_select='explanation', use_threshold=True, online_disc_every=None,
-                               use_explanation=True):
+                               use_explanation=True, eps_per_feature=False):
+    """eps_per_feature=False (default) keeps Autolycus's published behaviour: a fixed step of 1 for
+    every feature, ignoring epsilon_set (see the original, utils.py:113). Set True to step by
+    epsilon_set[i] instead, as the SHAP traversals and traverse_explanations_LIME3 do. That makes a
+    step-matched baseline possible: without it, any LIME3-vs-LIME contrast confounds the phases with
+    the step rule (30x on pendigits, 8x on crop, 1x on nursery/mushroom)."""
     if len(args2) == 10:
         classes, features, n_classes, n_features, isCat, epsilon_set, canNegative, classPossibilities, dataset_name, feature_ranges = args2
     else:
@@ -239,10 +244,11 @@ def traverse_explanations_LIME(sample_set, explainer, model, n_visits_lb, n_visi
                 #tmp = (any((cpys[i]==x).all() for x in visited_samples) or any((cpys[i]==x).all() for x in samples))
                 #if (tmp and (cpys[i][indices[ind_i]] >= 0)):
                 if (cpys[i][indices[ind_i]] >= 0):
+                    eps_i = epsilon_set[indices[ind_i]] if eps_per_feature else epsilon
                     if i % 2 == 0:
-                        cpys[i][indices[ind_i]] += epsilon
+                        cpys[i][indices[ind_i]] += eps_i
                     else:
-                        cpys[i][indices[ind_i]] -= epsilon
+                        cpys[i][indices[ind_i]] -= eps_i
                 tmp = (any((cpys[i] == x).all() for x in visited_samples) or
                        (any((cpys[i] == x).all() for x in samples)) or
                        (cpys[i][indices[ind_i]] < 0) or  #and isCat[indices[ind_i]] or
@@ -2411,7 +2417,7 @@ def traverse_explanations_LIME3(sample_set, explainer, model, n_visits_lb, n_vis
                                 bisect_refine=True, lime_num_samples=1000, diverse_method='manifold',
                                 budget_scale=True, overhead_frac=0.4, div_frac=0.15, div_cap=10,
                                 densify=0, feature_select='explanation', use_threshold=True,
-                                use_explanation=True):
+                                use_explanation=True, eps_override=None):
     """LIME analog of traverse_explanations_SHAP3. Same three-phase scaffold, LIME throughout the
     explanation-driven parts:
       Phase 1  diverse generation (explanation-free, identical to SHAP3; ablatable via use_diverse)
@@ -2526,8 +2532,16 @@ def traverse_explanations_LIME3(sample_set, explainer, model, n_visits_lb, n_vis
                 base_lo = float(low) if low != -1 else float(curr[fi])
                 if not use_threshold:                      # E3a: ignore the bin edge, step from current value
                     base_hi = base_lo = float(curr[fi])
-                cpys[2 * i][fi] = base_hi + epsilon_set[fi]
-                cpys[2 * i + 1][fi] = base_lo - epsilon_set[fi]
+                # STEP SIZE. Default is the per-feature epsilon_set, which is NOT what the base
+                # Autolycus LIME traversal does: traverse_explanations_LIME hardcodes epsilon = 1
+                # and ignores epsilon_set entirely (so does the original, utils.py:113). Only the
+                # SHAP traversals use epsilon_set. That makes every ladder/defense-sweep contrast
+                # between this function and the base one confounded by step size, by 8x on crop and
+                # 30x on pendigits, and not at all on nursery/mushroom where epsilon_set is all 1s.
+                # eps_override=1.0 matches the baseline so the phases can be isolated from the step.
+                eps_i = epsilon_set[fi] if eps_override is None else eps_override
+                cpys[2 * i][fi] = base_hi + eps_i
+                cpys[2 * i + 1][fi] = base_lo - eps_i
             for i in range(2 * k):
                 fi = idxs[i // 2]
                 if fi is None:
