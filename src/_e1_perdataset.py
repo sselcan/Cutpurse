@@ -1,10 +1,9 @@
-"""E1 companion: per-dataset decomposition of the LIME fidelity gain over Autolycus into its two
-components (boundary search vs diverse generation), broken out by dataset (one panel each) x model.
-  boundary_pp = 100*(ours[cap=0] - base)      # Phase-2 boundary, no diverse
-  diverse_pp  = 100*(ours[cap=15] - ours[cap=0])  # diverse generation on top
-Top budget, mean over the S=10 seed sets. Writes paper/figures/decomposition_per_dataset.png.
+"""Generate the per-dataset component-decomposition figure.
 
-    python _e1_perdataset.py
+It separates the boundary-search and diverse-generation contributions in the
+explanation-reading LIME sweep, at the top budget and averaged over the seed sets:
+
+    boundary = ours[cap=0] - base          diverse = ours[cap=15] - ours[cap=0]
 """
 import json, glob, os
 import numpy as np

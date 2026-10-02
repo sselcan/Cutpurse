@@ -1,20 +1,7 @@
-"""LIME aux-discretizer test: does LIME's threshold gain require the TARGET's data, or can the
-adversary self-supply the discretization from its own auxiliary data?
+"""Run the RQ3 target-grid versus attacker-grid comparison.
 
-Three paired arms on the BASE Autolycus LIME traversal (no diverse, no boundary search), n=1 (LIME's
-native setting), feature_select='explanation':
-  nothresh = LIME on X_train, use_threshold=False   (baseline: no bin edge)
-  tgt      = LIME on X_train, use_threshold=True     (real service: discretizer from TARGET data)
-  aux      = LIME on X_test_s, use_threshold=True     (adversary runs LIME on its OWN shadow data)
-
-Deltas:  thr_tgt = tgt - nothresh ;  thr_aux = aux - nothresh ;  leak = tgt - aux.
-If thr_aux ~ thr_tgt (both >> 0) and leak ~ 0 => the discretization helps but is self-computable
-=> LIME's "threshold leak" is not privileged information from the explanation.
-
-Multi-split protocol: NSPLIT=10 independent splits, HMS=1, target retrained per split, arms paired,
-Wilcoxon over splits.
-
-    python _lime_auxdisc.py --ds 1 --out paper_results
+The paired base-traversal configurations use no bin edge, the service grid, or
+an attacker-fitted grid. Per-split results are written as JSON.
 """
 import os, json, time, argparse, warnings, traceback
 import numpy as np

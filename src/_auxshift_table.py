@@ -1,16 +1,7 @@
-"""Assemble the shifted-auxiliary-grid appendix table from _lime_auxshift.py shards.
+"""Assemble the grid-fitting distribution-shift results.
 
-Reports, per dataset--model cell, the bin-edge gain over the no-bin-edge traversal (pp) for each
-grid-fitting pool, plus the two contrasts that carry the argument:
-
-  shift_X = hold_X - unif_X     the effect of the SHIFT at matched pool size
-  adv_X   = tgt    - hold_X     the target grid's advantage once the attacker's pool is shifted
-
-PAIRING CHECK. `aux_full` re-runs the published RQ3 `aux` arm, so it must reproduce the stored array
-element for element. `nothresh` and `tgt` are read from that same stored run, so if the check fails
-nothing in the table is paired and the script refuses to report.
-
-    python _auxshift_table.py
+The table contrasts uniform subsampling, class-support restriction, and the
+service grid using the JSON shards produced by ``_lime_auxshift.py``.
 """
 import os, glob, json, argparse
 import numpy as np

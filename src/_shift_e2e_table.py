@@ -1,24 +1,7 @@
-"""The 2x2 over (seed source) x (grid source), assembled from both shift runs.
+"""Assemble the 2x2 seed-source by grid-source shift decomposition.
 
-                  grid = full        grid = holdout
-  seeds = full    aux_full           hold_X        <- _lime_auxshift.py
-  seeds = holdout seed_X             e2e_X         <- _lime_auxshift_e2e.py
-
-Reported per cell and severity, in raw fidelity so the constant `nothresh` offset cannot confuse the
-decomposition:
-
-  d_grid  = hold_X - aux_full     the grid-shift penalty alone
-  d_seed  = seed_X - aux_full     the seed-coverage penalty alone
-  d_e2e   = e2e_X  - aux_full     what a subpopulation-restricted attacker actually loses
-  interact= e2e_X - seed_X - hold_X + aux_full     do the two penalties compound?
-  binedge = e2e_X - ns_X          bin-edge gain WITHIN the restricted threat model, the only
-                                  comparison in which both arms share the same seed set
-
-CROSS-RUN PAIRING CHECK. `aux_full` is defined identically in both drivers (full seeds, full grid,
-attack seed 1000+s), so the two runs must agree element for element. If they do not, the 2x2 mixes
-two incomparable runs and the script refuses to report.
-
-    python _shift_e2e_table.py
+It combines the grid-only and end-to-end restriction outputs into aggregate
+seed, grid, and interaction contrasts.
 """
 import os, glob, json, argparse
 import numpy as np

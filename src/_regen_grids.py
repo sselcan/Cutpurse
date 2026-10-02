@@ -1,9 +1,4 @@
-"""Regenerate the E4 fidelity-vs-budget grids with a FIXED, shared y-axis so subplots
-are visually comparable (per-subplot autoscaling was misleading). Writes the 4 figures the
-paper includes, directly into paper/figures/. Reads the existing sweep JSONs in paper_results/.
-
-    python _regen_grids.py
-"""
+"""Regenerate the appendix budget-sweep figures from stored JSON results."""
 import json, glob, os
 import numpy as np
 import matplotlib

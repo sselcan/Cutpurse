@@ -1,30 +1,7 @@
-"""The four-adversary ladder: what does an extraction adversary actually need?
+"""Evaluate base-traversal variants and Cutpurse under a paired protocol.
 
-All four run the SAME attack framework, the same query budget, the same auxiliary pool, the same
-seeds, the same surrogate family and the same evaluation set. They differ only in what the adversary
-is given. Named by capability, not by code path:
-
-  blind      base traversal, no grid, random features            -- the floor
-  autolycus  base traversal, TARGET's LIME (attribution + grid)  -- Autolycus, reproduced
-  selfgrid   base traversal, OWN grid, no explanation            -- grid substituted for explanation
-  ours       Phase 1 (diverse gen) + Phase 2 (boundary search) + Phase 3, OWN grid, no explanation
-  ours_lime  same as `ours` but handed the target's LIME         -- explanation's residual value
-
-`selfgrid` and `ours` call explain_instance ZERO times (use_explanation=False): the bin edges they
-consume come from the explainer's QuartileDiscretizer, which is fit on the adversary's own auxiliary
-pool at construction time and is a property of that data alone. `autolycus` and `ours_lime` do call
-it, and each such call spends LIME's internal predict_proba budget on the target (5000 in Phase 3,
-lime_num_samples in Phase 2) WITHOUT being charged to the query counter -- the accounting subsidy
-that the paper's query-cost table makes explicit.
-
-The claims each contrast supports:
-  ours     - autolycus  -> C4: our attack beats Autolycus with no explanation endpoint
-  ours     - selfgrid   -> C5: Phases 1+2 are what add the gain, on top of the same grid
-  selfgrid - autolycus  -> the grid substitutes for the explanation at equal phases (cf. E5)
-  ours_lime- ours       -> what the target's explanation still buys once we have our own grid
-  blind                 -> floor: neither grid nor explanation
-
-    python _ladder.py --ds 1 --out paper_results
+The configurations vary explanation access, grid source, and the added query
+generation phases. Per-split fidelity arrays are written as JSON.
 """
 import os, json, time, argparse, warnings, traceback
 import numpy as np
@@ -58,7 +35,7 @@ CONTRASTS = [('c4_ours_vs_autolycus', 'ours', 'autolycus'),
 
 
 def _borrow_autolycus(ds, out_dir):
-    """Per-model fidelity arrays for the Autolycus arm, taken from the E2/E3 multi-split run."""
+    """Load stored Autolycus fidelity arrays for one dataset."""
     p = os.path.join(out_dir, f'autolycus_ablation_ms_ds{ds}.json')
     if not os.path.exists(p):
         print(f'  [warn] {p} missing -- autolycus contrasts will be NaN', flush=True)
@@ -71,13 +48,7 @@ def _borrow_autolycus(ds, out_dir):
 
 
 class _CountingExplainer:
-    """Wraps a LimeTabularExplainer to record what an explanation really costs the target.
-
-    Autolycus charges neither the explain_instance call nor the predict_proba calls LIME spends
-    inside it (the explanation is assumed bundled with the label, so one API call). We keep that
-    convention for the headline budget -- it is their setting and it favours their attack -- but we
-    also record the true target access so the paper can report both accountings side by side.
-    """
+    """Wrap a LIME explainer and count calls forwarded to the target model."""
 
     def __init__(self, inner):
         self._inner = inner

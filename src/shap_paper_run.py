@@ -1,23 +1,7 @@
-"""
-SHAP paper results  --  ours vs Autolycus base-SHAP, via run_attack_auto_compare (et=1).
+"""Run SHAP budget sweeps for Cutpurse and the base SHAP traversal.
 
-Mirrors the LIME driver but uses the trusted compare function (no div_cap tuning: SHAP3 has no
-diverse-budget knob). run_attack_auto_compare runs the main method and the Autolycus base-SHAP
-(traverse_explanations_SHAP) on the SAME sample sets => paired; surrogate refits are aggregated by
-MEAN (no max/argmax leak); ONE query budget per call => the compare function's argmaxing is a no-op.
-Per-set paired similarities -> mean +/- std + paired Wilcoxon. Fixed seed for reproducibility.
-
-Parameters aligned with Autolycus SHAP: n = size = 5 seeds/class, k = nfe = 3 top features.
-main_variant:
-  'shap3' (default) -- SHAP3 for every target (clean "ours vs Autolycus" headline).
-  'best'            -- SHAP4b boundary-densification for DT/RF, SHAP3 otherwise.
-Per project notes, SHAP3 is the robust NON-TREE win; SHAP4b's tree gains did NOT replicate under
-mean-aggregation (only adult+RF survived the max-over-refits fix), so 'shap3' is the headline and
-'best' is only a tree ablation.
-
-Standalone (one process per dataset, run in parallel):
-    python shap_paper_run.py --ds 2 --qs 100,250,500,1000 --hms 10 --size 5 --nfe 3 --seed 0 \
-                             --main shap3 --out paper_results
+The driver writes paired per-split fidelity results across the requested query
+budgets. Command-line arguments select the evaluated configuration.
 """
 import os, json, time, argparse, traceback
 import numpy as np
@@ -30,14 +14,13 @@ DEFAULT_MODELS = [1, 2, 3, 0, 4]   # LR, NB, KNN, DT, RF
 
 
 def _per_set(rtest):
-    """Flatten the compare function's nested [batch][set] list. With a single Q/k/n this is one
-    batch of per-set MEAN similarities."""
+    """Flatten per-set fidelity values returned by the comparison helper."""
     return [float(s) for batch in (rtest or []) for s in batch]
 
 
 def run_dataset(ds, models=DEFAULT_MODELS, q_list=(100, 250, 500, 1000), hms=10, seed=0,
                 nfe=3, size=5, main_variant='shap3', out_dir='.'):
-    """Sweep all `models` for one dataset over `q_list`: ours (SHAP3/SHAP4b) vs Autolycus-SHAP."""
+    """Run the requested SHAP comparison for every model on one dataset."""
     os.makedirs(out_dir, exist_ok=True)
     path = os.path.join(out_dir, f'shap_sweep_n{size}_k{nfe}_ds{ds}.json')
     q_list = list(q_list)

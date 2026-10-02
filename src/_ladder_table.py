@@ -1,12 +1,4 @@
-"""Emit the LaTeX ladder table (tab:ladder) and its summary line from ladder_ds*.json.
-
-    python _ladder_table.py            # LaTeX body to stdout
-    python _ladder_table.py --plain    # readable version for eyeballing
-
-Significance is the paired Wilcoxon stored by _ladder.py. A contrast whose splits are mostly tied
-carries no marker: with fewer than MIN_EFFECTIVE non-tied pairs the test is not interpretable
-(scipy discards zero differences, then falls back to a normal approximation it warns is invalid).
-"""
+"""Print the LaTeX or plain-text ladder table from stored experiment results."""
 import json, glob, os, argparse
 import numpy as np
 

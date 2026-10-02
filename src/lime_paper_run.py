@@ -1,25 +1,8 @@
-"""
-LIME diverse-budget TUNING sweep  --  Autolycus-LIME vs ours at several diverse budgets.
+"""Run LIME budget sweeps for the explanation-reading appendix configuration.
 
-For each (dataset, model) we sweep the query budget Q and, at each Q, compare:
-  base          = Autolycus base-LIME                       (traverse_explanations_LIME)
-  ours @ cap=c  = LIME3 boundary + LIME-threshold diverse   (traverse_explanations_LIME3,
-                  diverse budget = up to c diverse samples; cap=0 => no diverse = boundary only)
-
-Why the CAP is the knob: the Phase-1 diverse budget is n_div = clip(Q*div_frac, 0, div_cap).
-At useful budgets div_frac*Q exceeds the cap, so the CAP (max diverse samples) is what actually
-binds -- that is the "diverse budget" to tune. cap=0 disables diverse entirely (the old ablation's
-'nodiv' endpoint). div_frac is held fixed and only protects very small Q from starvation.
-
-LIME convention (per project): n = size = 3 seeds/class, k = nfe = 1 top feature.
-
-Each traverse returns its ACTUAL query count -> x-axis is real queries, not the cap. Surrogate
-fidelity is MEAN over refits (no argmax/test-set selection). Paired sample sets across all arms;
-per-set reseeding makes the Q-sweep nested. Fixed seed => reproducible.
-
-Standalone (one process per dataset, run in parallel):
-    python lime_paper_run.py --ds 4 --qs 100,250,500,1000 --caps 0,5,15,30 --div_frac 0.3 \
-                             --hms 10 --size 3 --nfe 1 --seed 0 --out .
+The driver compares the base LIME traversal with the added query-generation
+phases across query budgets and diversity caps. Command-line arguments set the
+seed and feature-selection settings.
 """
 import os, json, time, argparse, warnings, traceback
 import numpy as np

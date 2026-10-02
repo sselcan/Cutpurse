@@ -1,16 +1,7 @@
-"""E2 on the BASE Autolycus SHAP attack -- MULTI-SPLIT protocol (companion to
-_autolycus_ablation_ms.py, so the SHAP and LIME attribution tables share a protocol).
+"""Run the paired multi-split SHAP ranking ablation for RQ1.
 
-SHAP exposes no bin edge, so this is a 1x2 rather than a 2x2:
-  shap    = explanation_type='vanilla'  (SHAP top-k feature selection)
-  random  = explanation_type='random'   (random-k features) == no-explanation baseline
-attribution effect = shap - random.
-
-Protocol: NSPLIT=10 independent train/test splits (load_dataset seed=0..9), HMS=1 seed set each,
-target retrained and SHAP explainer refit per split. Arms paired within a split (same RNG);
-Wilcoxon over the 10 splits. Base SHAP setting: n=5, k=3.
-
-    python _autolycus_ablation_shap_ms.py --ds 1 --out paper_results
+It compares SHAP-ranked and random feature selection in the base Autolycus
+traversal and writes per-split JSON results.
 """
 import os, json, time, argparse, warnings, traceback
 import numpy as np

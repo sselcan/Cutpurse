@@ -1,20 +1,7 @@
-"""E2 + E3 on the BASE Autolycus LIME attack -- MULTI-SPLIT protocol.
+"""Run paired multi-split LIME ablations for RQ1 and RQ2.
 
-Same 2x2 as _autolycus_ablation.py, but the statistical unit is an independent TARGET
-INSTANTIATION rather than an attacker seed set:
-  NSPLIT=10 independent train/test splits (load_dataset seed=0..9), HMS=1 seed set each,
-  target retrained per split, LIME explainer refit per split. Arms are paired within a split
-  (same RNG per arm); Wilcoxon over the 10 splits.
-This answers "n=10 what?" -- variance now covers split + target model + seed set, so the claim
-becomes "over independent target instantiations", not "for this one fitted model".
-
-  default   = feature_select='explanation', use_threshold=True   (real Autolycus)
-  randfeat  = feature_select='random',      use_threshold=True   (E2: random features)
-  nothresh  = feature_select='explanation', use_threshold=False  (E3: ignore the bin edge)
-  randnobin = feature_select='random',      use_threshold=False  (no-explanation baseline)
-=>  attribution = default - randfeat ; threshold = default - nothresh ; total = default - randnobin
-
-    python _autolycus_ablation_ms.py --ds 1 --out paper_results
+The four configurations vary attribution-based feature selection and bin-edge
+use in the base Autolycus traversal. Results are written as per-split JSON.
 """
 import os, json, time, argparse, warnings, traceback
 import numpy as np

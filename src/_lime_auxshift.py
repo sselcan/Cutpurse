@@ -1,35 +1,7 @@
-"""RQ3 under a SHIFTED auxiliary pool: does the self-computed grid still substitute for the target's?
+"""Run the grid-fitting distribution-shift sensitivity experiment.
 
-The published RQ3 arm fits the attacker's grid on an i.i.d. split of the same dataset, so its
-quartiles coincide with the target's almost by construction (_aux_shift_grid.py measures this:
-0.058 sigma on crop, 0.033 sigma on pendigits). This driver replaces that pool with a
-SUBPOPULATION -- whole classes held out of the grid-fitting pool -- and asks whether the bin-edge
-gain survives.
-
-ONLY the data the discretizer is fitted on changes. Seeds, query budget, traversal, random state,
-surrogate family and refits are untouched, matching the paper's "we separately vary only the data
-used to fit the auxiliary grid". `nothresh` and `tgt` are therefore invariant to this manipulation
-and are read from the stored RQ3 run rather than recomputed.
-
-Arms (all base Autolycus LIME traversal, n=1, feature_select='explanation', use_threshold=True):
-  aux_full    whole aux partition          == the published `aux` arm, so it MUST reproduce it
-  unif_mid    uniform subsample, size-matched to hold_mid
-  unif_low    uniform subsample, size-matched to hold_low
-  hold_mid    class holdout, keeps KEEP[ds][0] classes
-  hold_low    class holdout, keeps KEEP[ds][1] classes
-
-The uniform arms are not optional. Holding out classes also removes rows, and pool size alone moves
-both the grid and the fidelity (the aux-size sweep shows pendigits/LR fall from +18.6 to +12.9 at one
-input per class). The shift-attributable effect is hold - unif at matched size.
-
-Held-out classes are redrawn per split from an independent default_rng(7000+s), identical to
-_aux_shift_grid.py, so the global RNG stream the attack draws from is never touched and pairing with
-the stored arms is exact.
-
-Sharded by model, because each shard writes its own file:
-
-    python _lime_auxshift.py --ds 1 --models 1
-    python _lime_auxshift.py --ds 9 --models 0
+Only the attacker-side pool used to fit the grid changes. Uniform subsamples
+control for pool size, while class-support restriction induces the shift.
 """
 import os, json, glob, time, argparse, warnings, traceback
 import numpy as np
@@ -50,7 +22,7 @@ ARMS = ['aux_full', 'unif_mid', 'unif_low', 'hold_mid', 'hold_low']
 
 
 def _fid(mn, V, P, tm, Xt, nc):
-    """Identical to _lime_auxdisc.py's, so the reused nothresh/tgt arrays remain comparable."""
+    """Fit a surrogate and return its fidelity against the target model."""
     if mn == 'nb':
         V = np.clip(np.asarray(V, float), 0, None)
     P = np.asarray(P); yt = tm.predict(Xt)
@@ -67,7 +39,7 @@ def _fid(mn, V, P, tm, Xt, nc):
 
 
 def load_stored(ds, model, topQ):
-    """The published RQ3 row for this cell: nothresh_all, tgt_all, aux_all at the matching budget."""
+    """Load stored RQ3 reference results for one dataset--model cell."""
     cands = []
     for f in sorted(glob.glob(os.path.join(SRC, 'paper_results*', f'lime_auxdisc_shadow_ds{ds}.json'))):
         for r in json.load(open(f)):
@@ -82,7 +54,7 @@ def load_stored(ds, model, topQ):
 
 
 def build_pools(n_rows, ys, keep_mid, keep_low, rng):
-    """name -> row indices. Same construction and same rng seed as _aux_shift_grid.py."""
+    """Return row indices for full, uniform, and class-restricted pools."""
     ys = np.asarray(ys)
     idx_all = np.arange(n_rows)
     out = {'aux_full': idx_all}

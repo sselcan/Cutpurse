@@ -1,23 +1,7 @@
-"""How many auxiliary samples per class does the adversary need to self-supply LIME's grid?
+"""Measure how grid-fitting pool size affects RQ3 with quartile discretization.
 
-\S6.3 shows the adversary reproduces the target's threshold gain when its discretizer is fit on the
-full auxiliary partition, and loses some of it when fit on the n=1-per-class seed set. That leaves the
-question the review asks: where in between does the gap close? This sweeps it.
-
-Only the ADVERSARY'S DISCRETIZER varies. The attack's seed set stays at the Autolycus setting of one
-sample per class (mega[0][0]), the traversal, budget, RNG and target are untouched, so every arm is
-paired with the stored `nothresh` and `tgt` arms of _lime_auxdisc.py, which we borrow rather than
-recompute (they are seed-identical: random.seed(s) for the seed set, random.seed(1000+s) per arm).
-
-  thr_aux(n) = aux(n) - nothresh    what a grid fit on n samples/class is worth
-  leak(n)    = tgt - aux(n)         what the TARGET's own data still buys at that n
-
-Restricted to crop and pendigits, the two datasets where the threshold channel is load-bearing.
-Note crop has 17 classes, so n=10/class exhausts its 170-sample auxiliary pool, while pendigits
-(10 classes, 1100-sample pool) is still far from it: the pair brackets the saturating and
-non-saturating regimes.
-
-    python _auxsize_fid.py --ds 1 --out paper_results
+Only the attacker-side grid-fitting pool varies; the stored no-edge and
+service-grid arms provide the paired comparison. Results are written as JSON.
 """
 import os, json, time, argparse, warnings, traceback
 import numpy as np

@@ -1,24 +1,7 @@
-"""Three-curve budget sweep: Autolycus, Autolycus under the threshold defense, and ODYSSEUS.
+"""Run budget sweeps for Autolycus, the bin-edge-withheld variant, and Cutpurse.
 
-The question a single-budget comparison cannot answer is whether withholding LIME's bin edges
-*defends* or merely *delays*: if the defended baseline closes the gap as the budget grows, the
-defense is a speed bump and the headline number is an artefact of where we stopped measuring.
-
-Three arms, identical protocol, identical seed sets, re-run at each budget (the per-class visit
-quotas lb/ub are recomputed per Q, so truncating a single max-Q run is NOT equivalent):
-
-  autolycus  base traversal, target's LIME, bin edges available      (the published attack)
-  defended   base traversal, target's LIME, bin edges withheld       (use_threshold=False)
-  odysseus   Phase 1 + 2 + 3, own grid, random features, no LIME     (use_explanation=False)
-
-Protocol is the multi-split one used by the ablations, NOT the single-split sweep: NSPLIT
-independent train/test splits with the target retrained on each, one seed set per split, arms paired
-within a split. Seeds match _ladder.py and _autolycus_ablation_ms.py exactly (split seed s, seed set
-random.seed(s), attack random.seed(1000+s)), so at Q = Q_BY_DS[ds] the three curves must reproduce
-the stored `ours`, `default` and `nothresh` cells. That is an internal consistency check, and it
-means the figure and the defense table report the same quantity rather than two protocols.
-
-    python _defense_sweep.py --ds 1 --out paper_results
+Each budget is run independently under the paired multi-split protocol. The
+driver writes the per-split results used by the defense-sweep figures.
 """
 import os, json, time, argparse, warnings, traceback
 import numpy as np

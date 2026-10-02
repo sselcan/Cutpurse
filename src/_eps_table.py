@@ -1,29 +1,11 @@
-"""Restate the \sys contrasts with the step size matched to the baseline.
+"""Assemble step-size-matched Cutpurse and Autolycus contrasts.
 
-_ladder_eps.py re-runs three arms (autolycus, ours, ours_eps1) under the ladder's exact seeds.
-`defended` and `selfgrid` are NOT re-run: both are base-LIME arms at epsilon=1, and the ladder,
-the defense sweep and _ladder_eps.py all use split seed s and attack seed 1000+s, so the stored
-per-split arrays are the same draws. This script pairs against them.
+The script reads the step-size and ladder outputs, checks their expected pairing,
+and prints the reported aggregate contrasts.
 
-That assumption is VERIFIED, not assumed: the `autolycus` arm is also base LIME at epsilon=1, so
-our re-run must reproduce the stored autolycus array element for element. If the check fails the
-script refuses to report anything, because nothing downstream would be paired.
-
-Contrasts, each as reported in the paper and restated at matched step size:
-
-  ours      - defended       the +16.3pp headline
-  ours_eps1 - defended       the same contrast with \sys stepping by 1, as the baselines do
-  ours      - autolycus      the +7.0pp contrast
-  ours      - autolycus_eps  vs a baseline GIVEN the same per-feature step (the one to headline)
-  ours_eps1 - autolycus      \sys crippled to the baseline's step instead
-  ours      - selfgrid       the +5.9pp contrast (what Phases 1-2 add on the same grid)
-  autolycus_eps - autolycus  is the per-feature step better for the BASELINE too?
-  ours - BEST(autolycus, autolycus_eps)   the conservative comparison: per cell, take whichever
-      baseline configuration actually scores higher. autolycus_eps is a DIFFERENT baseline, not a
-      uniformly stronger one (on breast/NB it collapses by 41pp), so crediting \sys with that
-      collapse would overstate the margin. This column can only ever be conservative.
-
-    python _eps_table.py
+Column names: `ours` and `eps1` are Cutpurse at the per-feature and unit step; `aut` and `autE` are
+Autolycus at the unit and per-feature step; `def` is defended; `sg` is self-grid; `best` is the
+higher-scoring of the two Autolycus configurations in that cell; `step` is ours minus eps1.
 """
 import os, glob, json, argparse
 import numpy as np
@@ -39,7 +21,7 @@ def _norm(m):
 
 
 def load_stored():
-    """(dataset, model) -> {'defended': [...], 'selfgrid': [...], 'autolycus': [...]}, largest q wins."""
+    """Load maximum-budget ladder arrays indexed by dataset and model."""
     out = {}
     for f in sorted(glob.glob(os.path.join(SRC, 'paper_results*', 'ladder_ds*.json'))):
         for r in json.load(open(f)):
@@ -64,7 +46,7 @@ def load_stored():
 
 
 def _best(a, b):
-    """Per-cell stronger baseline configuration. None-safe."""
+    """Return the higher-scoring baseline value for each paired observation."""
     if a is None:
         return b
     if b is None:
@@ -83,7 +65,7 @@ def _wp(u, v):
 
 
 def _cell_bootstrap_interval(values, rng, n_resamples=100_000):
-    """Percentile interval for the mean over evaluated dataset--model cells."""
+    """Return a percentile bootstrap interval for the mean across evaluated cells."""
     values = np.asarray(values, float)
     draws = rng.choice(values, size=(n_resamples, len(values)), replace=True).mean(axis=1)
     return tuple(np.quantile(draws, [0.025, 0.975]))

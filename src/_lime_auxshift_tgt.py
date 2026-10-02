@@ -1,30 +1,7 @@
-"""The RQ3 question under shift: does the SERVICE's grid beat the shifted attacker's own grid?
+"""Compare service and attacker grids under class-support restriction.
 
-_lime_auxshift.py shifts only the grid. _lime_auxshift_e2e.py shifts the seeds too, but its
-comparison arms give the restricted attacker either its own shifted grid (e2e_X) or the grid from the
-FULL auxiliary pool (seed_X). Neither is the service's grid, so neither answers the question RQ3
-actually asks:
-
-    given an attacker whose data is a subpopulation, is the target's grid worth more than the grid
-    that attacker can compute for itself?
-
-This driver supplies the missing arm: restricted seeds paired with a discretizer fitted on the
-target's own training features, exactly as the published `tgt` arm of _lime_auxdisc.py is. The
-contrast that matters is then
-
-    tgt_X - e2e_X        the target grid's privileged advantage for a SHIFTED attacker,
-                         the direct analogue of Table V's "target adv." column
-
-Both arms share the same restricted seed set, so the seed-coverage penalty cancels and only the grid
-source differs.
-
-`aux_full` is re-run purely as a pairing anchor: it is defined identically in all three drivers, so it
-must reproduce them element for element.
-
-Pools and seeds are built with the same default_rng(7000+s) call order as the other two drivers, so
-every arm across all three is drawn from byte-identical pools.
-
-    python _lime_auxshift_tgt.py --ds 1 --models 0
+Both arms use the same restricted seed pool, so their contrast isolates the
+effect of the grid source.
 """
 import os, json, glob, time, argparse, warnings, traceback
 import numpy as np

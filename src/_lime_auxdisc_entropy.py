@@ -1,49 +1,7 @@
-"""Does H3 survive a NON-default discretizer?
+"""Run RQ3 with LIME's label-dependent entropy discretizer.
 
-\S6.4 shows the threshold channel is self-computable, but it shows it for ONE configuration:
-LIME's default QuartileDiscretizer, whose cuts are the 25/50/75 percentiles of the background
-data. That grid is label- and model-independent, which is the whole reason the adversary can
-rebuild it. LIME ships two other discretizers, and only one of them has that property:
-
-  quartile  cuts at 25/50/75 percentiles of the background data     label-independent
-  decile    cuts at the nine deciles                                label-independent, finer
-  entropy   cuts fitted by a depth-3 decision tree on the LABELS    label-DEPENDENT
-
-If the service runs `discretizer='entropy'`, its bin edges are no longer a pure marginal
-statistic, and the self-computability argument does not obviously carry. This driver tests it.
-
-Arms (paired, base Autolycus LIME traversal, no diverse, no boundary search, n=1):
-  nothresh  LIME on X_train, use_threshold=False            baseline: no bin edge at all
-  tgt       LIME on X_train (+ y_train)                     the service's own discretizer
-  aux_gt    LIME on the adversary's aux pool (+ its own ground-truth labels)
-  aux_qry   LIME on the adversary's aux pool (+ labels obtained by QUERYING the target)
-
-`aux_qry` exists because the threat model of \S3 says the auxiliary remainder is "never queried,
-never labelled". A quartile grid needs no labels, so that assumption costs the adversary nothing.
-An ENTROPY grid does need labels, so the adversary must either use its own ground truth (aux_gt,
-free but outside the stated threat model) or spend queries labelling the pool (aux_qry, inside
-the threat model but charged). We report both and record the query cost, so the paper can state
-the price rather than assume it away. For quartile/decile the labels are unused and `aux_qry` is
-skipped, since it would be bit-identical to `aux_gt`.
-
-Deltas:  thr_tgt = tgt - nothresh ;  thr_aux = aux_gt - nothresh ;  thr_auxq = aux_qry - nothresh
-         leak = tgt - aux_gt ;  leak_q = tgt - aux_qry        (positive = privileged to the target)
-
-Read as: if `leak` stays ~0 under entropy, H3 generalises past the default and the paper's claim
-strengthens from "LIME's quartile grid is self-computable" to "the discretization is". If `leak`
-turns significantly positive, a label-fitted discretizer IS a genuine disclosure, and that is the
-first mitigation in this setting that survives an adaptive adversary. Both are results.
-
-Also recorded per cell: the mean number of cut points per feature for each discretizer, so a null
-can be told apart from a degenerate grid (an entropy tree that never splits yields no threshold to
-snap to, which would look like "the channel vanished" for the wrong reason).
-
-Budgets and splits match \S6.4 exactly so the `tgt` column is comparable to Table V cell for cell.
-Categorical datasets (nursery, mushroom) are refused: their "bin edges" are quantiles of an integer
-label encoding (\S7), so how a different discretizer carves that artefact is not informative.
-
-    python _lime_auxdisc_entropy.py --ds 1 --disc entropy --out paper_results_disc
-    python _lime_auxdisc_entropy.py --ds 1 --disc quartile --out paper_results_disc   # reproduces Table V
+The paired service- and attacker-grid configurations use target predictions as
+the attacker-side grid-fitting labels. Results are written as JSON.
 """
 import os, json, time, argparse, warnings
 import numpy as np
@@ -80,14 +38,7 @@ def _fid(mn, V, P, tm, Xt, nc):
 
 
 def _mk_expl(data, labels, disc):
-    """LimeTabularExplainer with the requested discretizer. Only entropy consumes the labels.
-
-    Deliberately NO random_state: with random_state=None LIME draws its perturbations from the
-    GLOBAL numpy stream, which run_ds reseeds immediately before each traverse, so the arms stay
-    paired on identical perturbation draws. Handing LIME its own RandomState would give the
-    explainer a private stream that the per-arm reseed cannot reset, and since one explainer object
-    is reused across arms and models, later arms would silently run on different perturbations than
-    earlier ones. That would break pairing and the comparability with Table V at once."""
+    """Construct a LIME tabular explainer for the requested discretizer."""
     kw = dict(discretize_continuous=True, discretizer=disc)
     if disc == 'entropy':
         kw['training_labels'] = np.asarray(labels)
@@ -95,8 +46,7 @@ def _mk_expl(data, labels, disc):
 
 
 def _cuts_per_feature(expl):
-    """Mean number of interior cut points per continuous feature. A quartile grid gives 3 by
-    construction; an entropy grid varies, and a feature whose tree never splits gives 0."""
+    """Return the mean number of interior cuts across continuous features."""
     d = getattr(expl, 'discretizer', None)
     if d is None or not getattr(d, 'names', None):
         return float('nan')

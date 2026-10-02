@@ -1,33 +1,7 @@
-"""How many auxiliary samples per class does the adversary need to rebuild a LABEL-FITTED grid?
+"""Measure grid-fitting pool-size sensitivity for entropy discretization.
 
-_auxsize_fid.py answers this for LIME's default quartile discretizer: a handful of samples per
-class suffices, and on crop a single one already reaches parity. That result leans on quartile
-being a pure marginal statistic, which three points per feature pin down cheaply.
-
-The entropy discretizer is a different object. It fits a depth-3 decision tree per feature on the
-LABELS, so the adversary needs both more samples and labels for them. _lime_auxdisc_entropy.py shows
-the reconstruction works from the FULL auxiliary partition (leak ~ 0 on every cell). This sweeps
-downward to find where it stops working, which is the honest bound on the claim.
-
-Only the ADVERSARY'S DISCRETIZER varies. The attack's seed set stays at the Autolycus n=1 per class
-(mega[0][0]), and the traversal, budget, RNG and target are untouched, so every arm is paired within
-the split exactly as in _auxsize_fid.py.
-
-  thr_aux(n) = aux(n) - nothresh    what an entropy grid fit on n samples/class is worth
-  leak(n)    = tgt - aux(n)         what the TARGET's own data still buys at that n
-
-LABELS. The adversary obtains them by QUERYING THE TARGET (tm.predict), not from ground truth. This
-is the threat-model-compliant adversary of \S3, and _lime_auxdisc_entropy.py found the two label
-sources equivalent at full pool size (leak_q ~ leak on all ten cells). `gt_agree` records how often
-the queried labels match the true class, so a failure at small n can be attributed to label noise
-rather than to sample count. Ground-truth labels are recoverable exactly, since
-sample_set_generation walks classes in order taking n each, hence np.repeat(arange(nc), n).
-
-SIZES match _auxsize_fid.py so the entropy and quartile sweeps are read side by side. Note crop has
-17 classes and a 170-sample auxiliary pool, so n=10 per class exhausts it: on crop the n=10 column
-IS the full partition, and the sweep cannot be pushed further.
-
-    python _auxsize_fid_entropy.py --ds 1 --disc entropy --out paper_results_disc
+This is the label-dependent counterpart to ``_auxsize_fid.py``. The attacker
+uses target predictions for the grid-fitting labels; results are written as JSON.
 """
 import os, json, time, argparse, warnings, traceback
 import numpy as np
@@ -64,8 +38,7 @@ def _fid(mn, V, P, tm, Xt, nc):
 
 
 def _mk_expl(data, labels, disc):
-    """No random_state on purpose: LIME then draws from the global numpy stream, which is reseeded
-    before every traverse, keeping the arms paired. See _lime_auxdisc_entropy.py for the full note."""
+    """Construct a LIME explainer using the shared experiment RNG."""
     kw = dict(discretize_continuous=True, discretizer=disc)
     if disc == 'entropy':
         kw['training_labels'] = np.asarray(labels)

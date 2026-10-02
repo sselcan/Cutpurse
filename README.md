@@ -1,38 +1,29 @@
 # Cutpurse
 
-Research code for **explanation-guided model extraction**: how much of a deployed classifier an
-adversary can reconstruct when the model serves feature-attribution explanations (LIME, SHAP)
-alongside its predictions.
+Artifact for a paper on **what explanations actually leak to a model-extraction adversary** on
+tabular classifiers. An end-to-end attack comparison cannot tell whether an explanation revealed
+something about the model or merely handed the attacker a convenient place to put its next query, so
+this work separates the explanation into two channels and ablates them independently:
 
-The attack extends [Autolycus](https://arxiv.org/abs/2302.02162) (Oksuz, Halimi and Ayday, PoPETs
-2024), which walks a target model's decision space by perturbing the features its explanations mark
-as locally important.
+- **Attribution** — the importance ranking, i.e. which features to perturb.
+- **Bin edges** — the discretization thresholds LIME reports in its rule conditions
+  (`age <= 27.0`), i.e. which feature *values* to perturb to.
 
-## What is being tested
-
-The guiding question is *which* part of an explanation actually leaks. The work separates two
-channels that are usually conflated:
-
-- **Attribution** — the importance scores themselves (which features matter, and how much).
-- **Discretization thresholds** — the bin edges LIME reports in its rule conditions
-  (`age <= 27.0`), which hand the attacker candidate split points directly.
-
-Each is ablated independently against the same target models and query budgets, so the gain from
-one is not credited to the other.
+The useful channel turns out to be the bin edges, and those are quantiles of the explainer's
+background data rather than properties of the target model. **Cutpurse** is the attack that follows:
+a self-computed grid, diverse query generation and boundary search, making no explanation API calls
+at all. The published explanation-guided attack of Oksuz, Halimi and Ayday
+([Autolycus](https://arxiv.org/abs/2302.02162), PoPETs 2024) is the baseline the analysis is run on
+and the one Cutpurse is measured against.
 
 ## Layout
 
     src/
-      attack_utils.py         core attack: explanation traversal, sample generation, boundary search
-      generative_attack.py    generative / synthetic-query variants
-      max_cover.py            coverage-based selection
-      min_feat.py             minimal-feature-set utilities
-      *_paper_run.py          experiment drivers that produce the paper's numbers
-      *_paper_results.ipynb   analysis and figures for those runs
-      _*.py                   one-off ablations, sweeps and diagnostics
-      DEVELOPMENT_NOTES.md    design notes on the traversal methods
-
-    paper/                    manuscript sources (untracked until you choose to commit them)
+      attack_utils.py      traversal, seed generation, boundary search, dataset loaders
+      <driver>.py          experiment drivers, one or two per table or figure
+      *_table.py           assemblers that turn stored results into the paper's tables
+      paper_results*/      stored per-split results (JSON)
+    data/                  the three CSV-backed datasets (crop, nursery, mushroom)
 
 ## Running
 
@@ -40,11 +31,16 @@ one is not credited to the other.
 pip install -r src/requirements.txt
 ```
 
-The drivers under `src/` are standalone scripts; each writes its own results and is run directly,
-e.g. `python src/lime_paper_run.py`. Datasets are fetched by the loaders in `attack_utils.py`
-rather than vendored into the repo.
+[REPRODUCE.md](REPRODUCE.md) maps every table and figure to the command that produces it and names
+the result directory it reads. Every driver stores its per-split fidelity arrays, so the tables can
+be rebuilt from `src/paper_results*/` without rerunning an attack.
 
-## Status
+`breast` comes from scikit-learn, `adult` from the `shap` package and `pendigits` from OpenML, so
+those need network access on first run. Set `CUTPURSE_DATA` to relocate the CSV root.
 
-Active research code accompanying a paper in preparation. Interfaces change between experiments and
-the `_*.py` drivers are snapshots of specific runs, not a maintained API.
+## Scope
+
+Tabular classifiers, default LIME and SHAP configurations, and the auxiliary-data condition
+inherited from the baseline. The results do not extend to other explainers or discretizers, to
+neural or high-dimensional targets, or to adversaries whose auxiliary pool is not representative of
+the target's data.

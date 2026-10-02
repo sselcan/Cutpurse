@@ -1,35 +1,7 @@
-"""END-TO-END shifted-data attack: the shifted pool supplies the SEEDS as well as the grid.
+"""Run the end-to-end class-support restriction experiment.
 
-_lime_auxshift.py isolates the grid channel: every arm starts from the same seed set, drawn from the
-full auxiliary partition, and only the discretizer's background data changes. That answers "how much
-does a shifted grid cost?" but not "how much does a shifted ATTACKER lose?", because a real adversary
-restricted to a subpopulation cannot seed classes it has never seen.
-
-It cannot even ask: attack_utils.sample_set_generation loops over every class in range(n_classes) and
-calls random.sample(idx, n), which raises on the first class the pool lacks. seed_from_pool below
-skips absent classes instead, so the attacker seeds only what it has -- 11 or 6 of crop's 17 classes,
-7 or 4 of pendigits' 10. That is a harsher and more realistic threat model than the grid-only test,
-not a replacement for it.
-
-Together with _lime_auxshift.py this forms a 2x2 over (seed source) x (grid source):
-
-                  grid = full        grid = holdout
-  seeds = full    aux_full           hold_X       <- both from _lime_auxshift.py
-  seeds = holdout seed_X             e2e_X        <- this driver
-
-  seed_X - aux_full   the seed-coverage penalty alone
-  hold_X - aux_full   the grid-shift penalty alone            (from _lime_auxshift.py)
-  e2e_X  - aux_full   what the restricted attacker actually loses
-  interaction = e2e_X - seed_X - hold_X + aux_full            do the two penalties compound?
-
-Seed count is NOT a budget confound: traverse_explanations_LIME labels the whole seed set in one
-batched predict_proba and sets query = 1 regardless of its size (attack_utils.py:158-166), so the
-6-class attacker gets no spare budget in exchange for fewer seeds.
-
-Holdout classes are drawn from default_rng(7000+s) with the same call order as _lime_auxshift.py and
-_aux_shift_grid.py, so the pools are byte-identical across all three scripts.
-
-    python _lime_auxshift_e2e.py --ds 1 --models 0
+The restricted attacker uses the same limited input pool for its seeds and its
+grid, enabling a comparison with the grid-only restriction experiment.
 """
 import os, json, glob, time, argparse, warnings, traceback
 import numpy as np
@@ -65,7 +37,7 @@ ARM_CFG = {'aux_full': ('full', 'full', True),
 
 
 def _fid(mn, V, P, tm, Xt, nc):
-    """Identical to _lime_auxdisc.py / _lime_auxshift.py so every arm stays comparable."""
+    """Fit a surrogate and return its fidelity against the target model."""
     if mn == 'nb':
         V = np.clip(np.asarray(V, float), 0, None)
     P = np.asarray(P); yt = tm.predict(Xt)
@@ -82,11 +54,7 @@ def _fid(mn, V, P, tm, Xt, nc):
 
 
 def seed_from_pool(Xs, ys, nc, n_per_class):
-    """attack_utils.sample_set_generation, but skipping classes the pool cannot supply.
-
-    The upstream version raises on an absent class. With a COMPLETE pool this reproduces
-    mega_sample_generation(...)[0][0] exactly from the same RNG state; that is asserted, not assumed.
-    """
+    """Sample seeds from the available classes in a restricted auxiliary pool."""
     ys = np.asarray(ys)
     out = []
     for c in range(nc):
@@ -99,7 +67,7 @@ def seed_from_pool(Xs, ys, nc, n_per_class):
 
 
 def build_pools(n_rows, ys, keep_mid, keep_low, rng):
-    """Identical construction and rng call order to _lime_auxshift.py, so pools match exactly."""
+    """Construct class-restricted pools for one split."""
     ys = np.asarray(ys)
     idx_all = np.arange(n_rows)
     out = {'full': idx_all}

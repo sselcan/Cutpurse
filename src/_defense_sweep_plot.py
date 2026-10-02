@@ -1,10 +1,4 @@
-"""Plot the three-curve defense sweep: Autolycus, Autolycus under the threshold defense, ODYSSEUS.
-
-Matches the style of the existing E4 grids (fixed shared y-axis, standard-error bands) so the two
-figures are visually comparable.
-
-    python _defense_sweep_plot.py --out ../paper/figures/defense_sweep.png
-"""
+"""Plot the three-curve defense budget sweep from stored JSON results."""
 import os, json, glob, argparse
 import numpy as np
 import matplotlib

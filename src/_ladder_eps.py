@@ -1,48 +1,7 @@
-"""STEP-SIZE CONTROL: is \sys's margin over Autolycus an artefact of a larger perturbation step?
+"""Run the step-size sensitivity experiment for Cutpurse and Autolycus.
 
-Every baseline arm in _ladder.py and _defense_sweep.py runs traverse_explanations_LIME, which
-hardcodes `epsilon = 1` and ignores epsilon_set (as does the original Autolycus, utils.py:113).
-\sys runs traverse_explanations_LIME3, which steps by the per-feature epsilon_set. The two are
-therefore NOT matched on step size:
-
-    pendigits  epsilon_set median 30.2   -> \sys steps ~30x further than every baseline
-    crop                          8.0    -> ~8x
-    adult                         2.0    -> ~2x
-    breast                        0.073  -> ~14x SHORTER
-    nursery, mushroom             1.0    -> identical, no difference at all
-
-The two datasets where \sys shows no gain are exactly the two where it has no step-size advantage.
-The paper explains that null mechanistically (no continuous axis, so no bin edges to snap to), and
-that explanation is probably right, but the existing experiments cannot separate it from "\sys wins
-where it takes bigger steps". This driver separates them.
-
-Four arms, paired within split, identical seeds/budget/evaluation to _ladder.py and
-_defense_sweep.py (split seed s, seed set random.seed(s), attack random.seed(1000+s)):
-
-  autolycus      base traversal, target's LIME, eps = 1              (published attack)
-  autolycus_eps  the SAME baseline given \sys's per-feature step     (strengthened baseline)
-  ours           Phase 1+2+3, own grid, no explanation call, eps = epsilon_set   (as reported)
-  ours_eps1      identical to `ours` but eps_override=1.0            (crippled to the baseline)
-
-The step rule is a deliberate design choice, not an accident: a fixed step of 1 is meaningless on a
-feature whose range is in the hundreds, and Autolycus already uses epsilon_set for SHAP. But only
-\sys got it, so the published contrast credits the phases with whatever the step rule is worth.
-There are two ways to match, and the honest claim needs both:
-
-  ours - autolycus       must reproduce the stored Table VI margin (consistency check)
-  ours - autolycus_eps   matched at OUR step: does the margin survive a strengthened baseline?
-  ours_eps1 - autolycus  matched at THEIR step: does it survive when \sys is crippled instead?
-  autolycus_eps - autolycus  is the per-feature step actually better, for them too?
-  ours - ours_eps1       the step-size effect on our side alone
-
-Read as: if the margin survives BOTH matchings, the step rule is not the explanation and the phases
-carry it. `ours - autolycus_eps` is the one to headline, since strengthening the baseline is the
-comparison a reviewer will ask for.
-
-Run on the datasets where the confound exists at all; nursery/mushroom have epsilon_set all-1s and
-are already matched.
-
-    python _ladder_eps.py --ds 1 --out paper_results_eps
+Both methods are evaluated under the unit and feature-scaled perturbation rules
+using the paired multi-split protocol.
 """
 import os, json, time, argparse, warnings, traceback
 import numpy as np
